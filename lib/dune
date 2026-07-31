@@ -1,2 +1,5 @@
 (library
- (name hal_storm))
+ (name hal_storm_lib)
+ (public_name hal_storm.lib))
+
+

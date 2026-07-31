@@ -1,4 +1,5 @@
 (executable
  (public_name hal_storm)
  (name main)
- (libraries hal_storm))
+ (libraries eio_main eio hal_storm_lib))
+

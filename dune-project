@@ -19,7 +19,7 @@
  (name hal_storm)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml)
+ (depends ocaml eio_main)
  (tags
   ("add topics" "to describe" your project)))
 
