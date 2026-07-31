@@ -1,0 +1,4 @@
+(executable
+ (public_name hal_storm)
+ (name main)
+ (libraries hal_storm))
