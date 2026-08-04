@@ -3,7 +3,9 @@ open Hal_storm_lib  (* Открываем нашу библиотеку парс
 
 let () =
   Eio_main.run @@ fun env ->
-  traceln "⚡️ HAL-Storm Engine Initialized! ⚡️"
+
+                  let idx = Parser.test_wirth "tell me why" 0  in
+                  traceln "%d" idx
 
 
 
