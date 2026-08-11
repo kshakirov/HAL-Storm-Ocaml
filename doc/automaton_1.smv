@@ -1,0 +1,38 @@
+MODULE main
+
+  VAR
+    state : {reqMethod, reqUri, reqVersion,expectCRLF, success, error, headerName, headerValue};
+
+IVAR
+
+  action : {none, space, carriage, newLine, byteSeq, colon, quotes};
+
+ASSIGN
+  init(state):=reqMethod;
+next(state):=case 
+	       state= reqMethod & action=space: reqUri;
+	       state= reqUri  & action=space: reqVersion;
+	       state= reqVersion & action=carriage: expectCRLF;
+	       state = expectCRLF & action=newLine: headerName;
+	       state = expectCRLF & action=carriage: success;
+	       state = headerName & action=colon: headerValue;
+	       state = headerValue & action =carriage: expectCRLF;
+	       state =   error: error;
+	       
+	       
+	       
+	       TRUE : error;
+
+	       
+	       
+	       esac;
+	       
+
+	       
+	       
+	       
+FAIRNESS action = carriage;	       
+
+LTLSPEC (F (state = expectCRLF & action = carriage)) -> F (state = success | state = error)
+
+  
