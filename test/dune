@@ -1,3 +1,4 @@
 (test
- (name test_hal_storm)
- (libraries hal_storm_lib))
+ (name test_parser)
+ (modules test_parser)
+ (libraries eio eio_main hal_storm_lib)) ; подставь имя своей библиотеки с парсером

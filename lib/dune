@@ -1,5 +1,6 @@
 (library
  (name hal_storm_lib)
- (public_name hal_storm.lib))
+ (public_name hal_storm.lib)
+ (libraries eio eio_main )) ; подставь имя своей библиотеки с парсером
 
 

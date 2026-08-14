@@ -1,4 +1,4 @@
-(* Состояния ДКА по Вирту для разбора первой строки HTTP *)
+open Eio.Std(* Состояния ДКА по Вирту для разбора первой строки HTTP *)
 type http_state =
   | ParseMethod     (* Ищем метод: GET, POST... *)
   | ParseUri        (* Ищем путь: /api/v1/users... *)
@@ -45,6 +45,6 @@ let rec test_wirth str idx s:parserState =
      Printf.printf "Successfully finishing parsing ";
      {state= Success; offsets=s.offsets}
 
-
+let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState = s 
 
   
