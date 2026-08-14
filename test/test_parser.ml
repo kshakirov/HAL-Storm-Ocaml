@@ -4,7 +4,7 @@ let test_simple_parse () =
   let mock_request = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n" in
   (* pure-буфер из строки, сетевых сокетов и фоновых задач нет *)
   let buf = Eio.Buf_read.of_string mock_request  in
-  let r = wirth_parser buf {state=ReqMethod; offsets= [0]} in 
+  let r = wirth_parser buf {state=ReqMethod; offsets= [0]; index = 0} in 
   (* Тут вызов твоего парсера *)
   (* let result = Parser.parse buf in *)
   
