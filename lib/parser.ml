@@ -1,5 +1,7 @@
 open Eio.Std(* Состояния ДКА по Вирту для разбора первой строки HTTP *)
 open Eio.Buf_read
+open List
+
 type http_state =
   | ParseMethod     (* Ищем метод: GET, POST... *)
   | ParseUri        (* Ищем путь: /api/v1/users... *)
@@ -50,6 +52,8 @@ let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
   let ch =any_char   buf in
   traceln "ch is %c" ch ;
   match ch, s.state with
-      |_-> s 
+  | ' ', ReqMethod  -> wirth_parser buf {state=ReqUri; offsets= cons s.index  s.offsets; index= (s.index + 1)}
+  | x , ReqMethod when  s.index < 9 -> wirth_parser buf {state=ReqMethod; offsets= s.offsets; index= (s.index + 1)}
+  |_ -> s
 
   
