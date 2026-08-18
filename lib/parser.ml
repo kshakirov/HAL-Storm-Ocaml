@@ -46,7 +46,7 @@ let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
   | x, ReqVersion  -> wirth_parser buf {state=ReqVersion; offsets= s.offsets; index= s.index + 1}
   | '\n',ExpectCRLF   -> wirth_parser buf {state=HeaderName; offsets= cons (s.index + 1)  s.offsets; index= (s.index + 1)}
   | '\r',ExpectCRLF -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
-  | ':', HeaderName -> wirth_parser buf {state=HeaderValue; offsets= cons (s.index - 1) s.offsets; index=(s.index + 1)}
+  | ':', HeaderName -> wirth_parser buf {state=HeaderValue; offsets= cons (s.index + 1) (cons (s.index - 1) s.offsets); index=(s.index + 1)}
   | '\r', HeaderName -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
   | x, HeaderName -> wirth_parser buf {state=HeaderName; offsets=  s.offsets; index=(s.index + 1)}
   | '\r', HeaderValue -> wirth_parser buf {state=ExpectCRLF; offsets= cons (s.index - 1) s.offsets; index=(s.index + 1)}
