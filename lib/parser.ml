@@ -42,7 +42,7 @@ let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
   | x , ReqMethod when  s.index > 9 -> {state=Error; offsets= s.offsets; index= s.index }
   | ' ', ReqUri  -> wirth_parser buf {state=ReqVersion; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
   | x , ReqUri  -> wirth_parser buf {state=ReqUri; offsets= s.offsets; index= (s.index + 1)}
-  | '\r', ReqVersion  -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index= s.index}
+  | '\r', ReqVersion  -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index= s.index + 1}
   | x, ReqVersion  -> wirth_parser buf {state=ReqVersion; offsets= s.offsets; index= s.index + 1}
   | '\n',ExpectCRLF   -> wirth_parser buf {state=HeaderName; offsets= cons (s.index + 1)  s.offsets; index= (s.index + 1)}
   | '\r',ExpectCRLF -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
