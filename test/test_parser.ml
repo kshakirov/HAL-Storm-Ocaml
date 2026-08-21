@@ -20,10 +20,10 @@ let rec print_headers str = function
 
 let print_full_request mock_request offsets =
   match List.rev offsets with
-  | p0 :: p1 :: p2 :: p3 :: headers_offsets ->
+  | p0 :: p1 :: p2 :: p3 ::p4::p5:: headers_offsets ->
       let req_method = slice_between mock_request p0 p1 in
-      let uri        = slice_between mock_request (p1 + 1) p2 in
-      let version    = slice_between mock_request (p2 + 1) p3 in
+      let uri        = slice_between mock_request  p2  p3  in
+      let version    = slice_between mock_request p4 p5 in
       Printf.printf "Method:  '%s'\n" req_method;
       Printf.printf "URI:     '%s'\n" uri;
       Printf.printf "Version: '%s'\n" version;
