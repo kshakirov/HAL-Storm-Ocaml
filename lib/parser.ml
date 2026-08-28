@@ -18,6 +18,11 @@ type http_status =
   |HeaderValue
   |ReqVersion[@@deriving show]
 
+type parser_stage =
+  |Finished
+  |NeedMoreData
+  |Malformed
+
 
 
 let  test_hello n  =
@@ -34,8 +39,11 @@ let check_method_3 str  =
 
 
 let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
+  match peek_char buf with
+  |None   ->  s 
+  |_ ->                           
   let ch =any_char   buf in
-  (* traceln "ch is %c" ch ; *)
+  (* traceln "ch is %c" ch ;     *)
   match ch, s.state with
   | ' ', ReqMethod  -> wirth_parser buf {state=ReqUri; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
   | x , ReqMethod when  s.index < 9 -> wirth_parser buf {state=ReqMethod; offsets= s.offsets; index= (s.index + 1)}
@@ -54,4 +62,4 @@ let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
   | _, Success -> s
   |_ -> s
 
-  
+   

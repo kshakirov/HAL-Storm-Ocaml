@@ -30,6 +30,7 @@ let print_full_request mock_request offsets =
       print_headers mock_request headers_offsets
   | _ -> Printf.printf "Недостаточно оффсетов!\n"
 
+let mock_request = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n" 
 let test_simple_parse () =
   Printf.printf "test started\n";
   (* let mock_request = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n" in *)
@@ -40,17 +41,34 @@ let test_simple_parse () =
   "Accept: */*\r\n" ^
   "\r\n" in 
   (* pure-буфер из строки, сетевых сокетов и фоновых задач нет *)
-  let buf = Eio.Buf_read.of_string mock_request  in
+  let buf = Eio.Buf_read.of_string (String.sub mock_request 0 30)  in
+  let buf2 = Eio.Buf_read.of_string (String.sub mock_request 30 ((String.length mock_request ) - 30))  in
   let r = wirth_parser buf {state=ReqMethod; offsets= [0]; index = 0} in
+  let r2 = wirth_parser buf2 r in
   (* let s = String.sub  mock_request (r.offsets | drop )  (\* подсмотрит 4 байта, буфер останется на месте *\) in  *)
   (* traceln "Method is  %s " s; *)
   (* Тут вызов твоего парсера *)
   (* let result = Parser.parse buf in *)
   (* iter (fun l -> Printf.printf "%d = %c\n" l mock_request.[if l > 0 then l - 1 else l]) (rev r.offsets ) *)
-  print_full_request mock_request r.offsets
-   
+  print_full_request mock_request r2.offsets
+ 
+let rec test_recursive (buf: Eio.Buf_read.t) (state: parserState) =
+   match peek_char buf with
+   |None   ->  state
+   |_ ->                           
+     let ch =any_char   buf in
+     let n_state = wirth_parser (Eio.Buf_read.of_string (String.make 1 ch)) state in
+     test_recursive buf n_state
 
+
+
+   
+  
 let () =
-  (* Обязательно заворачиваем в Eio_main, чтобы работал Eio.Buf_read *)
+  (* Обязательно заворачиваем вn Eio_main, чтобы работал Eio.Buf_read *)
   Eio_main.run @@ fun _env ->
-  test_simple_parse ()
+                  (* test_simple_parse () *)
+                  let state  = test_recursive (Eio.Buf_read.of_string mock_request)  {state=ReqMethod; offsets= [0]; index = 0} in
+                  print_full_request mock_request state.offsets
+
+
