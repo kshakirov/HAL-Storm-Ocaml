@@ -1,8 +1,25 @@
 open Eio.Std
-
-let handle_client flow =
+open Hal_storm_lib.HttpRequestParser
+open Hal_storm_lib.Parser
+let handle_client flow  =
   let buf = Eio.Buf_read.of_flow flow ~max_size:4096 in
-  traceln "Клиент подключен %d"  (Eio.Buf_read.buffered_bytes buf )
+  let wirthState = {state=ReqUri; offsets=[]; index= 0} in
+  let state = httpRequestParse buf buf  wirthState in
+  let response =
+  "HTTP/1.1 200 OK\r\n\
+   Content-Length: 2\r\n\
+   Connection: close\r\n\
+   \r\n\
+   OK" in
+  match state with
+  |Finished ->
+    traceln "Finised";
+    Eio.Flow.copy_string response flow
+  |_ ->
+    traceln "Other";
+    Eio.Flow.copy_string response flow
+
+        
   (* Тут вызовем наш парсер *)
 
 let run_server net port =
@@ -10,14 +27,16 @@ let run_server net port =
   let addr = `Tcp (Eio.Net.Ipaddr.V4.any, port) in
   let socket = Eio.Net.listen net ~sw ~backlog:128 addr in
   traceln "Сервер запущен на порту %d" port;
-  
-  (* accept_fork сам работает как бесконечный цикл *)
-      Eio.Net.accept_fork socket ~sw
-  ~on_error:(fun exn -> traceln "Ошибка сокета: %a" Eio.Exn.pp exn)
-  (fun flow _addr ->
-    try handle_client flow
-    with exn -> traceln "Ошибка клиента: %a" Eio.Exn.pp exn
-  )
+
+
+  traceln "Сервер запущен на порту %d" port;
+
+  Eio.Net.run_server socket
+    ~on_error:(fun exn ->
+      traceln "Ошибка клиента: %a" Eio.Exn.pp exn)
+    (fun flow _addr ->
+      handle_client flow)
+
 
 let () =
   Eio_main.run @@ fun env ->
