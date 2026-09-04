@@ -1,10 +1,10 @@
 open Eio.Std
 open Hal_storm_lib.HttpRequestParser
 open Hal_storm_lib.Parser
-let handle_client flow  =
-  let buf = Eio.Buf_read.of_flow flow ~max_size:4096 in
+let handle_client flow (requestBuffer : Eio.Buf_read.t)  =
+  let fragment = Eio.Buf_read.of_flow flow ~max_size:4096 in
   let wirthState = {state=ReqUri; offsets=[]; index= 0} in
-  let state = httpRequestParse buf buf  wirthState in
+  let state = httpRequestParse fragment fragment  wirthState in
   let response =
   "HTTP/1.1 200 OK\r\n\
    Content-Length: 2\r\n\
@@ -14,6 +14,9 @@ let handle_client flow  =
   match state with
   |Finished ->
     traceln "Finised";
+    Eio.Flow.copy_string response flow
+  |Error ->
+    traceln "Error";
     Eio.Flow.copy_string response flow
   |_ ->
     traceln "Other";
@@ -26,6 +29,7 @@ let run_server net port =
   Switch.run @@ fun sw ->
   let addr = `Tcp (Eio.Net.Ipaddr.V4.any, port) in
   let socket = Eio.Net.listen net ~sw ~backlog:128 addr in
+  let requestBuffer = Eio.Buf_read.of_string "" in 
   traceln "Сервер запущен на порту %d" port;
 
 
@@ -35,7 +39,7 @@ let run_server net port =
     ~on_error:(fun exn ->
       traceln "Ошибка клиента: %a" Eio.Exn.pp exn)
     (fun flow _addr ->
-      handle_client flow)
+      handle_client flow requestBuffer)
 
 
 let () =
