@@ -1,10 +1,10 @@
 open Eio.Std
 open Hal_storm_lib.HttpRequestParser
 open Hal_storm_lib.Parser
-let handle_client flow (requestBuffer : Eio.Buf_read.t)  =
-  let fragment = Eio.Buf_read.of_flow flow ~max_size:4096 in
+let rec handle_client flow (requestBuffer : Eio.Buf_read.t)  =
+  let fragment = Eio.Buf_read.of_flow flow ~max_size:1024 in
   let wirthState = {state=ReqUri; offsets=[]; index= 0} in
-  let state = httpRequestParse fragment fragment  wirthState in
+  let (state, n_buf) = httpRequestParse requestBuffer fragment  wirthState in
   let response =
   "HTTP/1.1 200 OK\r\n\
    Content-Length: 2\r\n\
@@ -13,14 +13,14 @@ let handle_client flow (requestBuffer : Eio.Buf_read.t)  =
    OK" in
   match state with
   |Finished ->
-    traceln "Finised";
+    traceln "Finished";
     Eio.Flow.copy_string response flow
   |Error ->
     traceln "Error";
     Eio.Flow.copy_string response flow
   |_ ->
     traceln "Other";
-    Eio.Flow.copy_string response flow
+    handle_client flow requestBuffer
 
         
   (* Тут вызовем наш парсер *)
