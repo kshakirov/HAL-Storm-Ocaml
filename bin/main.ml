@@ -3,15 +3,11 @@ open Hal_storm_lib.HttpRequestParser
 open Hal_storm_lib.Parser
 let rec handle_client flow (requestBuffer : Cstruct.t)  =
   let fragment = Cstruct.create 1024 in 
-  let _read_bytes =Eio.Flow.single_read flow fragment in 
+  let _read_bytes =Eio.Flow.single_read flow fragment in
   let wirthState = {state=ReqUri; offsets=[]; index= 0} in
   let (state, n_buf) = httpRequestParse requestBuffer fragment  wirthState in
   let response =
-  "HTTP/1.1 200 OK\r\n\
-   Content-Length: 2\r\n\
-   Connection: close\r\n\
-   \r\n\
-   OK" in
+    "HTTP/1.1 200 OK\r\n\r\n" in
   match state with
   |Finished ->
     traceln "Finished";
@@ -30,7 +26,7 @@ let run_server net port =
   Switch.run @@ fun sw ->
   let addr = `Tcp (Eio.Net.Ipaddr.V4.any, port) in
   let socket = Eio.Net.listen net ~sw ~backlog:128 addr in
-  let requestBuffer = Cstruct.create 1028 in 
+  let requestBuffer = Cstruct.create 1028 in (*this one we may not need at all but for the time being*)
   traceln "Сервер запущен на порту %d" port;
 
 
