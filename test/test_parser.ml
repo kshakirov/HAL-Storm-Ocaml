@@ -32,12 +32,13 @@ let print_full_request mock_request offsets =
 
 let mock_request = "GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n" 
  
-let rec test_recursive (buf: Eio.Buf_read.t) (state: parserState) =
-   match peek_char buf with
-   |None   ->  state
+let rec test_recursive (origBuf: Cstruct.t) (state: parserState) =
+   match Cstruct.length origBuf with
+   |0   ->  state
    |_ ->                           
-     let ch =any_char   buf in
-     let n_state = wirth_parser (Eio.Buf_read.of_string (String.make 1 ch)) state in
+     let ch =Cstruct.sub   origBuf 0 1 in
+     let buf = Cstruct.sub origBuf 1 (Cstruct.length origBuf - 1) in
+     let n_state = wirth_parser ch state in
      test_recursive buf n_state
 
 let rec cmp_offsets (one : int list) (another : int list) =
@@ -65,10 +66,11 @@ let () =
   (* Обязательно заворачиваем вn Eio_main, чтобы работал Eio.Buf_read *)
   Eio_main.run @@ fun _env ->
                   (* test_simple_parse () *)
-                  let state  = test_recursive (Eio.Buf_read.of_string mock_request)  {state=ReqMethod; offsets= [0]; index = 0} in
-                  let another_state = wirth_parser(Eio.Buf_read.of_string mock_request) {state=ReqMethod; offsets= [0]; index = 0}  in
+                  let state  = test_recursive ( Cstruct.of_string mock_request)  {state=ReqMethod; offsets= [0]; index = 0} in
+                  let another_state = wirth_parser(Cstruct.of_string mock_request) {state=ReqMethod; offsets= [0]; index = 0}  in
                   let equal = cmp_offsets state.offsets another_state.offsets in
                   cmp_parsed_results state another_state ; assert(equal)
+
 
 
 

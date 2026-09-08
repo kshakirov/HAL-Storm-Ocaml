@@ -10,7 +10,7 @@ type httpParserState =
 
 
 
-let rec httpRequestParse (buf: Eio.Buf_read.t) (fragment: Eio.Buf_read.t) (parser_state: parserState) : (httpParserState* Eio.Buf_read.t) =
+let rec httpRequestParse (buf: Cstruct.t) (fragment: Cstruct.t) (parser_state: parserState) : (httpParserState* Cstruct.t) =
   let n_state = wirth_parser fragment parser_state in
  match ( n_state.state) with
   | Success -> (Finished, buf)

@@ -1,5 +1,5 @@
 open Eio.Std(* Состояния ДКА по Вирту для разбора первой строки HTTP *)
-open Eio.Buf_read
+open Eio
 open List
 
 type http_state =
@@ -38,26 +38,27 @@ let check_method_3 str  =
   
 
 
-let rec wirth_parser (buf: Eio.Buf_read.t )  (s: parserState) : parserState =
-  match peek_char buf with
-  |None   ->  s 
+let rec wirth_parser (origBuf: Cstruct.t  )  (s: parserState) : parserState =
+  match Cstruct.length origBuf with
+  |0   ->  s 
   |_ ->                           
-  let ch =any_char   buf in
+    let ch = Cstruct.get_uint8 origBuf 0 in
+    let buf = Cstruct.sub origBuf 1 (Cstruct.length origBuf - 1) in
   (* traceln "ch is %c" ch ;     *)
   match ch, s.state with
-  | ' ', ReqMethod  -> wirth_parser buf {state=ReqUri; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
+  | 32, ReqMethod  -> wirth_parser buf {state=ReqUri; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
   | x , ReqMethod when  s.index < 9 -> wirth_parser buf {state=ReqMethod; offsets= s.offsets; index= (s.index + 1)}
   | x , ReqMethod when  s.index > 9 -> {state=Error; offsets= s.offsets; index= s.index }
-  | ' ', ReqUri  -> wirth_parser buf {state=ReqVersion; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
+  | 32, ReqUri  -> wirth_parser buf {state=ReqVersion; offsets= cons (s.index + 1) (cons s.index  s.offsets); index= (s.index + 1)}
   | x , ReqUri  -> wirth_parser buf {state=ReqUri; offsets= s.offsets; index= (s.index + 1)}
-  | '\r', ReqVersion  -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index= s.index + 1}
+  | 13, ReqVersion  -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index= s.index + 1}
   | x, ReqVersion  -> wirth_parser buf {state=ReqVersion; offsets= s.offsets; index= s.index + 1}
-  | '\n',ExpectCRLF   -> wirth_parser buf {state=HeaderName; offsets= cons (s.index + 1)  s.offsets; index= (s.index + 1)}
-  | '\r',ExpectCRLF -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
-  | ':', HeaderName -> wirth_parser buf {state=HeaderValue; offsets= cons (s.index + 1) (cons s.index s.offsets); index=(s.index + 1)}
-  | '\r', HeaderName -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
+  | 10,ExpectCRLF   -> wirth_parser buf {state=HeaderName; offsets= cons (s.index + 1)  s.offsets; index= (s.index + 1)}
+  | 13,ExpectCRLF -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
+  | 58, HeaderName -> wirth_parser buf {state=HeaderValue; offsets= cons (s.index + 1) (cons s.index s.offsets); index=(s.index + 1)}
+  | 13, HeaderName -> wirth_parser buf {state=Success; offsets=  s.offsets; index=(s.index + 1)}
   | x, HeaderName -> wirth_parser buf {state=HeaderName; offsets=  s.offsets; index=(s.index + 1)}
-  | '\r', HeaderValue -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index=(s.index + 1)}
+  | 13, HeaderValue -> wirth_parser buf {state=ExpectCRLF; offsets= cons s.index  s.offsets; index=(s.index + 1)}
   | x, HeaderValue -> wirth_parser buf {state=HeaderValue; offsets=  s.offsets; index=(s.index + 1)}                        
   | _, Success -> s
   |_ -> s

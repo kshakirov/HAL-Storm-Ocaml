@@ -1,8 +1,9 @@
 open Eio.Std
 open Hal_storm_lib.HttpRequestParser
 open Hal_storm_lib.Parser
-let rec handle_client flow (requestBuffer : Eio.Buf_read.t)  =
-  let fragment = Eio.Buf_read.of_flow flow ~max_size:1024 in
+let rec handle_client flow (requestBuffer : Cstruct.t)  =
+  let fragment = Cstruct.create 1024 in 
+  let _read_bytes =Eio.Flow.single_read flow fragment in 
   let wirthState = {state=ReqUri; offsets=[]; index= 0} in
   let (state, n_buf) = httpRequestParse requestBuffer fragment  wirthState in
   let response =
@@ -29,7 +30,7 @@ let run_server net port =
   Switch.run @@ fun sw ->
   let addr = `Tcp (Eio.Net.Ipaddr.V4.any, port) in
   let socket = Eio.Net.listen net ~sw ~backlog:128 addr in
-  let requestBuffer = Eio.Buf_read.of_string "" in 
+  let requestBuffer = Cstruct.create 1028 in 
   traceln "Сервер запущен на порту %d" port;
 
 
