@@ -23,7 +23,7 @@ let rec handle_client flow (requestBuffer : Cstruct.t) (wirthState : parserState
        Eio.Flow.copy_string response flow
      |_ ->
        traceln "Other";
-       handle_client flow fragment newWirthState
+       handle_client flow requestBuffer newWirthState
 
 
 (* Тут вызовем наш парсер *)
