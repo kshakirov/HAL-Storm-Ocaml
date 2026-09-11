@@ -40,7 +40,7 @@ let run_server net port =
                   ~on_error:(fun exn ->
                     traceln "Ошибка клиента: %a" Eio.Exn.pp exn)
                   (fun flow _addr ->
-                    handle_client flow (Cstruct.create buffer_size) {state=ReqUri; offsets=[]; index= 0} )
+                    handle_client flow (Cstruct.create buffer_size) {state=ReqMethod; offsets=[]; index= 0} )
 
 
 let () =
