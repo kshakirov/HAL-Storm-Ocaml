@@ -10,11 +10,11 @@ type httpParserState =
 
 
 
-let rec httpRequestParse (buf: Cstruct.t) (fragment: Cstruct.t) (parser_state: parserState) : (httpParserState* Cstruct.t) =
+let rec httpRequestParse  (fragment: Cstruct.t) (parser_state: parserState) : (httpParserState* Cstruct.t * parserState) =
   let n_state = wirth_parser fragment parser_state in
  match ( n_state.state) with
-  | Success -> (Finished, buf)
-  | Error -> (Error,buf)
-  | _ -> (NeedsMoreData,buf)
+  | Success -> (Finished, fragment, n_state)
+  | Error -> (Error,fragment, n_state)
+  | _ -> (NeedsMoreData,fragment,n_state)
 
      

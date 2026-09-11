@@ -2,7 +2,7 @@
 
 Локальный снимок тикетов репозитория `kshakirov/HAL-Storm-Ocaml`.
 
-Дата синхронизации: 2026-09-01
+Дата синхронизации: 2026-09-04
 Источник: https://github.com/kshakirov/HAL-Storm-Ocaml/issues
 
 ## Открытые
@@ -11,6 +11,7 @@
 - [#4 — Property-Based Testing автомата через QCheck](0004.md)
 - [#5 — Интеграция ДКА Вирта с потоком байт Eio.Buf_read и юнит-тестирование](0005.md)
 - [#6 — Исследование потокового алгоритма Маркова для преобразования токенов](0006.md)
+- [#7 — Build request handler → requestParser → Wirth parser vertical path](0007.md)
 
 ## Закрытые
 
