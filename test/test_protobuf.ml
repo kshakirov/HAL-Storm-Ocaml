@@ -16,7 +16,7 @@ type proto_parser_state =
 
 
 let add_little_endian b = b (*just stub*)
-
+(*one more parameter needed field number*)
 let rec parse_varint (t:Cstruct.t) values_tuple iv =
   match Cstruct.length t with
   |0 -> (t, values_tuple, iv)
@@ -35,6 +35,7 @@ let parse_protobuf seq  values_tuple intermediate_value  =
   |_ ->
     let b = Cstruct.get_byte seq 0 in 
     match b with
+      (* get field number from varint and pass it further*)
     |x when  x land 7 = 0 -> parse_varint (Cstruct.sub seq 1 (Cstruct.length seq - 1)) values_tuple ()
     |_ -> (seq, values_tuple, intermediate_value)
       
