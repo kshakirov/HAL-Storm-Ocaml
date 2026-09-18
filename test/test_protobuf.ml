@@ -23,8 +23,8 @@ let rec parse_varint (t:Cstruct.t) values_tuple iv =
   |_ ->
     let b = Cstruct.get_byte t 0 in 
     match  b  with
-    | x when  x land 0x7f = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), values_tuple, iv)
-    | x when  x land 0x7f = 1  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple iv (*do something with h*)
+    | x when  x land 0x80 = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), values_tuple, iv)
+    | x when  x land 0x80 = 1  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple iv (*do something with h*)
     | _ ->  (t,values_tuple,iv) (* just stub*)
      
      
