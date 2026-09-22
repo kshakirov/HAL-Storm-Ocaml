@@ -19,7 +19,10 @@ type protobuf_value =
   |SliceVal of Cstruct.t
 
 
-let add_little_endian b = b (*just stub*)
+let add_little_endian prev_b new_b  shift =
+  let payload = new_b land 0x7f in
+  let shifted_payload = payload lsl shift in
+  shifted_payload + prev_b
 (*one more parameter needed field number*)
 let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
   match Cstruct.length t with
@@ -27,8 +30,8 @@ let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
   |_ ->
     let b = Cstruct.get_byte t 0 in 
     match  b  with
-    | x when  x land 0x80 = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (Int64.of_int b)):: values_tuple , iv)
-    | x when  x land 0X80 = 1  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple iv field_number (shift + 1)
+    | x when  x land 0x80 = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (Int64.of_int (add_little_endian iv x shift))):: values_tuple , iv)
+    | x when  x land 0X80 = 1  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple (add_little_endian iv x shift) field_number (shift + 1) 
     | _ ->  (t,values_tuple,iv) (* just stub*)
      
      
@@ -40,7 +43,7 @@ let parse_protobuf seq  values_tuple intermediate_value  =
     let b = Cstruct.get_byte seq 0 in 
     match b with
       (* get field number from varint and pass it further*)
-    |x when  x land 7 = 0 ->  parse_varint (Cstruct.sub seq 1 (Cstruct.length seq - 1)) values_tuple [] (x lsr 3) 0
+    |x when  x land 7 = 0 ->  parse_varint (Cstruct.sub seq 1 (Cstruct.length seq - 1)) values_tuple 0 (x lsr 3) 0
     |_ -> (seq, values_tuple, intermediate_value)
       
   
