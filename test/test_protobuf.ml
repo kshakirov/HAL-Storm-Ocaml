@@ -25,14 +25,11 @@ let add_little_endian prev_b new_b  shift =
   shifted_payload + prev_b
 (*one more parameter needed field number*)
 
-let rec parse_delim_length (t:Cstruct.t) values_tuple field_number length iv =
-  match Cstruct.length t with
-  |0 -> (t, values_tuple, iv)
-  |_ ->
-    let _b = Cstruct.get_byte t 0 in
-    match length with
-    |x when x > 0 -> parse_delim_length t values_tuple field_number (length - 1) iv
-    |_ -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, SliceVal (Cstruct.sub t 0 length) ):: values_tuple , iv)
+let rec parse_delim_length (seq:Cstruct.t) values_tuple field_number length iv =
+  match Cstruct.length seq - length with
+  |l when l < 0  -> (seq, values_tuple, iv)
+  |_ -> 
+    (Cstruct.sub seq length (Cstruct.length seq - length), (field_number, SliceVal (Cstruct.sub seq 0 length) ):: values_tuple , iv)
 
 
 
