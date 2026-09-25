@@ -82,4 +82,10 @@ let () =
                   let (_seq, values_tuple, _iv)  = parse_protobuf test_buffer [] 0 in
 	          assert(1 = fst (List.hd values_tuple));
                   assert((VarIntVal 150)  = snd (List.hd values_tuple));
+                   (* Тест 2: Length-delimited (Wire Type 2) *)
+                  let test_buffer_type2 = Cstruct.of_hex "120568656c6c6f" in
+                  let (_, values_tuple2, _) = parse_protobuf test_buffer_type2 [] 0 in
+                  assert (fst (List.hd values_tuple2) = 2);
+                  let slice = match snd (List.hd values_tuple2) with SliceVal s -> s | _ -> failwith "Expected SliceVal" in
+                  assert (Cstruct.to_string slice = "hello");
                   Printf.printf "Working with Protobufs";
