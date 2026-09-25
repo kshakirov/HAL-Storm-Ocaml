@@ -2,7 +2,7 @@
 
 Локальный снимок тикетов репозитория `kshakirov/HAL-Storm-Ocaml`.
 
-Дата синхронизации: 2026-09-22
+Дата синхронизации: 2026-09-25
 Источник: https://github.com/kshakirov/HAL-Storm-Ocaml/issues
 
 ## Открытые
