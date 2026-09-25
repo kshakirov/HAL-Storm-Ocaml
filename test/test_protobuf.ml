@@ -15,7 +15,7 @@ type proto_parser_state =
   |Payload
 
 type protobuf_value =
-  |VarIntVal of int64
+  |VarIntVal of int
   |SliceVal of Cstruct.t
 
 
@@ -25,14 +25,14 @@ let add_little_endian prev_b new_b  shift =
   shifted_payload + prev_b
 (*one more parameter needed field number*)
 
-let rec parse_delim_length (t:Cstruct.t) values_tuple field_number length iv currentIndex =
+let rec parse_delim_length (t:Cstruct.t) values_tuple field_number length iv =
   match Cstruct.length t with
   |0 -> (t, values_tuple, iv)
   |_ ->
     let _b = Cstruct.get_byte t 0 in
-    match currentIndex with
-    |x when x < length-> parse_delim_length (Cstruct.sub t 1 (Cstruct.length t - 1)) values_tuple field_number length iv (currentIndex + 1)
-    |_ -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, SliceVal iv ):: values_tuple , iv)
+    match length with
+    |x when x > 0 -> parse_delim_length t values_tuple field_number (length - 1) iv
+    |_ -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, SliceVal (Cstruct.sub t 0 length) ):: values_tuple , iv)
 
 
 
@@ -43,7 +43,7 @@ let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
     let b = Cstruct.get_byte t 0 in
     (* Printf.printf "%d\n" b; *)
     match  b  with
-    | x when  x land 0x80 = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (Int64.of_int (add_little_endian iv x shift))):: values_tuple , iv)
+    | x when  x land 0x80 = 0  -> (Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (add_little_endian iv x shift)):: values_tuple , iv)
     | x  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple (add_little_endian iv x shift) field_number (shift + 7) 
 
      
@@ -62,13 +62,13 @@ let parse_protobuf seq  values_tuple intermediate_value  =
     |x when  x land 7 = 2 -> 
              let (seq, tmp_values_tuple, intermediate_value) =
                parse_varint (Cstruct.sub seq 1 (Cstruct.length seq - 1)) values_tuple 0 (x lsr 3) 0  in
-             let _varint_val =  
+             let varint_val =  
              match snd (List.hd tmp_values_tuple) with
              |VarIntVal v -> v
-             |_-> Int64.of_int 0 in
-             let _field_number = fst (List.hd tmp_values_tuple) in
-             (seq, values_tuple, intermediate_value)
-             (* parse_delim_length seq values_tuple varint_val *)
+             |_->  0 in
+             let field_number = fst (List.hd tmp_values_tuple) in
+             (* (seq, values_tuple, intermediate_value) *)
+             parse_delim_length seq values_tuple field_number varint_val 0
 
       
     |_ -> (seq, values_tuple, intermediate_value)
@@ -84,5 +84,5 @@ let () =
                   let test_buffer = Cstruct.of_hex "089601" in 
                   let (_seq, values_tuple, _iv)  = parse_protobuf test_buffer [] 0 in
 	          assert(1 = fst (List.hd values_tuple));
-                  assert((VarIntVal 150L)  = snd (List.hd values_tuple));
+                  assert((VarIntVal 150)  = snd (List.hd values_tuple));
                   Printf.printf "Working with Protobufs";
