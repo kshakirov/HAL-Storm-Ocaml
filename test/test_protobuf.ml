@@ -14,7 +14,7 @@ type proto_parser_state =
   | ParsingVarInt of { field_number : int; iv : int; shift : int }
   | ParsingLengthVarInt of { field_number : int; iv : int; shift : int }
   | ParsingLengthDelim of { field_number : int; target_len : int }
-  | GettingLength  of {iv : int; shift:int}
+  | GettingLength  of {iv : int; shift:int; field_number : int}
   |Finish
 
 type protobuf_value =
@@ -36,15 +36,15 @@ let rec parse_delim_length (seq:Cstruct.t) values_tuple field_number length iv =
     (AwaitingTag, Cstruct.sub seq length (Cstruct.length seq - length), (field_number, SliceVal (Cstruct.sub seq 0 length) ):: values_tuple , iv)
 
 (* loosing here field number  and shift  *)
-let rec get_length (t:Cstruct.t)  iv  shift=
+let rec get_length (t:Cstruct.t)  iv  shift field_number=
   match Cstruct.length t with
-  |0 -> (GettingLength {iv=iv; shift=shift},t, iv, shift)
+  |0 -> (GettingLength {iv=iv; shift=shift; field_number= field_number},t, iv, shift, field_number)
   |_ ->
     let b = Cstruct.get_byte t 0 in
     (* Printf.printf "%d\n" b; *)
     match  b  with
-    | x when  x land 0x80 = 0  -> (AwaitingTag ,Cstruct.sub t 1 (Cstruct.length t - 1), (add_little_endian iv x shift), shift)
-    | x  -> get_length (Cstruct.sub t 1 (Cstruct.length t - 1))  (add_little_endian iv x shift) (shift + 7) 
+    | x when  x land 0x80 = 0  -> ( ParsingLengthDelim {field_number=field_number; target_len=(add_little_endian iv x shift)}, Cstruct.sub t 1 (Cstruct.length t - 1), (add_little_endian iv x shift), shift, field_number)
+    | x  -> get_length (Cstruct.sub t 1 (Cstruct.length t - 1))  (add_little_endian iv x shift) (shift + 7) field_number
 
 
 
@@ -68,6 +68,10 @@ let parse_protobuf state seq  values_tuple intermediate_value  =
         |ParsingVarInt {field_number; iv ;shift } -> parse_varint  seq values_tuple iv field_number shift
         |ParsingLengthDelim {field_number; target_len } -> parse_delim_length  seq values_tuple field_number target_len 0
         (* here match the GettingLength state then call for *)
+        |GettingLength {iv;shift;field_number} ->
+           let (state, seq, varint_val, shift, field_number) =
+             get_length seq  iv shift field_number in
+           parse_delim_length seq values_tuple field_number varint_val 0
         |_ -> 
     
 (* not sure about field number above the rest of the values must be there *)
@@ -76,9 +80,9 @@ let parse_protobuf state seq  values_tuple intermediate_value  =
       (* get field number from varint and pass it further*)
     |x when  x land 7 = 0 ->  parse_varint (Cstruct.sub seq 1 (Cstruct.length seq - 1)) values_tuple 0 (x lsr 3) 0
     |x when  x land 7 = 2 ->
-
-             let (state, seq, varint_val, shift) =
-               get_length (Cstruct.sub seq 1 (Cstruct.length seq - 1))  0  0  in
+             let field_number =     (x lsr 3) in 
+             let (state, seq, varint_val, shift, field_number) =
+               get_length (Cstruct.sub seq 1 (Cstruct.length seq - 1))  0  0 field_number in
              parse_delim_length seq values_tuple (x lsr 3) varint_val 0
 
       
