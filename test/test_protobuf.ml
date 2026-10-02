@@ -12,7 +12,6 @@ let  frame1 = "\x08\x01"
 type proto_parser_state =
   |AwaitingTag
   | ParsingVarInt of { field_number : int; iv : int; shift : int }
-  | ParsingLengthVarInt of { field_number : int; iv : int; shift : int }
   | ParsingLengthDelim of { field_number : int; target_len : int }
   | GettingLength  of {iv : int; shift:int; field_number : int}
   |Finish
