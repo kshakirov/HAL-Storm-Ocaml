@@ -60,7 +60,7 @@ let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
      
      
 (* iv  is a value which we parse from little endian *)
-let parse_protobuf state seq  values_tuple intermediate_value  =
+let rec parse_protobuf state seq  values_tuple intermediate_value  =
   match Cstruct.length seq with
   |0 -> (state, seq, values_tuple, intermediate_value)
   |_ -> match state with
@@ -70,7 +70,10 @@ let parse_protobuf state seq  values_tuple intermediate_value  =
         |GettingLength {iv;shift;field_number} ->
            let (state, seq, varint_val, shift, field_number) =
              get_length seq  iv shift field_number in
-           parse_delim_length seq values_tuple field_number varint_val 0
+           (match state with
+           |GettingLength {iv;shift;field_number} -> parse_protobuf state seq values_tuple intermediate_value
+           |_ -> parse_delim_length seq values_tuple field_number varint_val 0
+           )
         |_ -> 
     
 (* not sure about field number above the rest of the values must be there *)
@@ -82,7 +85,8 @@ let parse_protobuf state seq  values_tuple intermediate_value  =
              let field_number =     (x lsr 3) in 
              let (state, seq, varint_val, shift, field_number) =
                get_length (Cstruct.sub seq 1 (Cstruct.length seq - 1))  0  0 field_number in
-             parse_delim_length seq values_tuple (x lsr 3) varint_val 0
+             parse_protobuf state seq values_tuple intermediate_value
+
 
       
     |_ -> (Finish, seq, values_tuple, intermediate_value)
@@ -106,3 +110,21 @@ let () =
                   let slice = match snd (List.hd values_tuple2) with SliceVal s -> s | _ -> failwith "Expected SliceVal" in
                   assert (Cstruct.to_string slice = "hello");
                   Printf.printf "Working with Protobufs";
+
+                  let test_slice_1 = Cstruct.of_hex "1282" in
+                  let (state_1,_, values_tuple_1, _) = parse_protobuf AwaitingTag test_slice_1 [] 0 in
+                  assert(state_1 = GettingLength {
+    iv = 2;
+    shift = 7;
+    field_number = 2;
+  }
+                    );
+
+                  let test_slice_2 =
+                    Cstruct.of_hex
+                      ("01" ^ String.concat "" (List.init 130 (fun _ -> "41")))
+                  in
+
+                  let (state,_, values_tuple2, _) = parse_protobuf state_1 test_slice_2 [] 0 in
+                  assert(state = AwaitingTag)
+                  
