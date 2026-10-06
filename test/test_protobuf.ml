@@ -28,11 +28,11 @@ let add_little_endian prev_b new_b  shift =
 (*one more parameter needed field number*)
 
 (*  loosing here field number  *)
-let rec parse_delim_length (seq:Cstruct.t) values_tuple field_number length iv =
+let rec parse_delim_length (seq:Cstruct.t) values_tuple field_number length =
   match Cstruct.length seq - length with
-  |l when l < 0  -> (ParsingLengthDelim {field_number;  target_len=length},seq, values_tuple, iv)
+  |l when l < 0  -> (ParsingLengthDelim {field_number;  target_len=length},seq, values_tuple)
   |_ -> 
-    (AwaitingTag, Cstruct.sub seq length (Cstruct.length seq - length), (field_number, SliceVal (Cstruct.sub seq 0 length) ):: values_tuple , iv)
+    (AwaitingTag, Cstruct.sub seq length (Cstruct.length seq - length), (field_number, SliceVal (Cstruct.sub seq 0 length) ):: values_tuple )
 
 (* loosing here field number  and shift  *)
 let rec get_length (t:Cstruct.t)  iv  shift field_number=
@@ -49,30 +49,30 @@ let rec get_length (t:Cstruct.t)  iv  shift field_number=
 
 let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
   match Cstruct.length t with
-  |0 -> (ParsingVarInt {field_number=field_number; iv=iv; shift=shift},t, values_tuple, iv)
+  |0 -> (ParsingVarInt {field_number=field_number; iv=iv; shift=shift},t, values_tuple)
   |_ ->
     let b = Cstruct.get_byte t 0 in
     (* Printf.printf "%d\n" b; *)
     match  b  with
-    | x when  x land 0x80 = 0  -> (AwaitingTag ,Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (add_little_endian iv x shift)):: values_tuple , iv)
+    | x when  x land 0x80 = 0  -> (AwaitingTag ,Cstruct.sub t 1 (Cstruct.length t - 1), (field_number, VarIntVal (add_little_endian iv x shift)):: values_tuple)
     | x  -> parse_varint (Cstruct.sub t 1 (Cstruct.length t - 1))  values_tuple (add_little_endian iv x shift) field_number (shift + 7) 
 
      
      
 (* iv  is a value which we parse from little endian *)
-let rec parse_protobuf state seq  values_tuple intermediate_value  =
+let rec parse_protobuf state seq  values_tuple   =
   match Cstruct.length seq with
-  |0 -> (state, seq, values_tuple, intermediate_value)
+  |0 -> (state, seq, values_tuple)
   |_ -> match state with
         |ParsingVarInt {field_number; iv ;shift } -> parse_varint  seq values_tuple iv field_number shift
-        |ParsingLengthDelim {field_number; target_len } -> parse_delim_length  seq values_tuple field_number target_len 0
+        |ParsingLengthDelim {field_number; target_len } -> parse_delim_length  seq values_tuple field_number target_len
         (* here match the GettingLength state then call for *)
         |GettingLength {iv;shift;field_number} ->
            let (state, seq, varint_val, shift, field_number) =
              get_length seq  iv shift field_number in
            (match state with
-           |GettingLength {iv;shift;field_number} -> parse_protobuf state seq values_tuple intermediate_value
-           |_ -> parse_delim_length seq values_tuple field_number varint_val 0
+           |GettingLength {iv;shift;field_number} -> parse_protobuf state seq values_tuple 
+           |_ -> parse_delim_length seq values_tuple field_number varint_val
            )
         |_ -> 
     
@@ -85,11 +85,11 @@ let rec parse_protobuf state seq  values_tuple intermediate_value  =
              let field_number =     (x lsr 3) in 
              let (state, seq, varint_val, shift, field_number) =
                get_length (Cstruct.sub seq 1 (Cstruct.length seq - 1))  0  0 field_number in
-             parse_protobuf state seq values_tuple intermediate_value
+             parse_protobuf state seq values_tuple 
 
 
       
-    |_ -> (Finish, seq, values_tuple, intermediate_value)
+    |_ -> (Finish, seq, values_tuple)
       
   
 
@@ -100,19 +100,19 @@ let () =
   Eio_main.run @@ fun _env ->
 
                   let test_buffer = Cstruct.of_hex "089601" in 
-                  let (state,_seq, values_tuple, _iv)  =  parse_protobuf  AwaitingTag test_buffer [] 0 in
+                  let (state,_seq, values_tuple)  =  parse_protobuf  AwaitingTag test_buffer [] in
 	          assert(1 = fst (List.hd values_tuple));
                   assert((VarIntVal 150)  = snd (List.hd values_tuple));
                    (* Тест 2: Length-delimited (Wire Type 2) *)
                   let test_buffer_type2 = Cstruct.of_hex "120568656c6c6f" in
-                  let (state,_, values_tuple2, _) = parse_protobuf AwaitingTag test_buffer_type2 [] 0 in
+                  let (state,_, values_tuple2) = parse_protobuf AwaitingTag test_buffer_type2 [] in
                   assert (fst (List.hd values_tuple2) = 2);
                   let slice = match snd (List.hd values_tuple2) with SliceVal s -> s | _ -> failwith "Expected SliceVal" in
                   assert (Cstruct.to_string slice = "hello");
                   Printf.printf "Working with Protobufs";
 
                   let test_slice_1 = Cstruct.of_hex "1282" in
-                  let (state_1,_, values_tuple_1, _) = parse_protobuf AwaitingTag test_slice_1 [] 0 in
+                  let (state_1,_, values_tuple_1) = parse_protobuf AwaitingTag test_slice_1 [] in
                   assert(state_1 = GettingLength {
     iv = 2;
     shift = 7;
@@ -125,6 +125,6 @@ let () =
                       ("01" ^ String.concat "" (List.init 130 (fun _ -> "41")))
                   in
 
-                  let (state,_, values_tuple2, _) = parse_protobuf state_1 test_slice_2 [] 0 in
+                  let (state,_, values_tuple2) = parse_protobuf state_1 test_slice_2 [] in
                   assert(state = AwaitingTag)
                   
