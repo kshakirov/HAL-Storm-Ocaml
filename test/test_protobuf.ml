@@ -60,7 +60,7 @@ let rec parse_varint (t:Cstruct.t) values_tuple iv field_number shift=
      
      
 (* iv  is a value which we parse from little endian *)
-let rec parse_protobuf state seq  values_tuple   =
+let rec parse_protobuf state seq  values_tuple handler  =
   match Cstruct.length seq with
   |0 -> (state, seq, values_tuple)
   |_ -> match state with
@@ -71,7 +71,7 @@ let rec parse_protobuf state seq  values_tuple   =
            let (state, seq, varint_val, shift, field_number) =
              get_length seq  iv shift field_number in
            (match state with
-           |GettingLength {iv;shift;field_number} -> parse_protobuf state seq values_tuple 
+           |GettingLength {iv;shift;field_number} -> parse_protobuf state seq values_tuple handler
            |_ -> parse_delim_length seq values_tuple field_number varint_val
            )
         |_ -> 
@@ -85,13 +85,13 @@ let rec parse_protobuf state seq  values_tuple   =
              let field_number =     (x lsr 3) in 
              let (state, seq, varint_val, shift, field_number) =
                get_length (Cstruct.sub seq 1 (Cstruct.length seq - 1))  0  0 field_number in
-             parse_protobuf state seq values_tuple 
+             parse_protobuf state seq values_tuple handler
 
 
       
     |_ -> (Finish, seq, values_tuple)
       
-  
+    let value_handler v = v
 
 
 
@@ -100,19 +100,19 @@ let () =
   Eio_main.run @@ fun _env ->
 
                   let test_buffer = Cstruct.of_hex "089601" in 
-                  let (state,_seq, values_tuple)  =  parse_protobuf  AwaitingTag test_buffer [] in
+                  let (state,_seq, values_tuple)  =  parse_protobuf  AwaitingTag test_buffer [] value_handler in
 	          assert(1 = fst (List.hd values_tuple));
                   assert((VarIntVal 150)  = snd (List.hd values_tuple));
                    (* Тест 2: Length-delimited (Wire Type 2) *)
                   let test_buffer_type2 = Cstruct.of_hex "120568656c6c6f" in
-                  let (state,_, values_tuple2) = parse_protobuf AwaitingTag test_buffer_type2 [] in
+                  let (state,_, values_tuple2) = parse_protobuf AwaitingTag test_buffer_type2 [] value_handler in
                   assert (fst (List.hd values_tuple2) = 2);
                   let slice = match snd (List.hd values_tuple2) with SliceVal s -> s | _ -> failwith "Expected SliceVal" in
                   assert (Cstruct.to_string slice = "hello");
                   Printf.printf "Working with Protobufs";
 
                   let test_slice_1 = Cstruct.of_hex "1282" in
-                  let (state_1,_, values_tuple_1) = parse_protobuf AwaitingTag test_slice_1 [] in
+                  let (state_1,_, values_tuple_1) = parse_protobuf AwaitingTag test_slice_1 [] value_handler in
                   assert(state_1 = GettingLength {
     iv = 2;
     shift = 7;
@@ -125,6 +125,6 @@ let () =
                       ("01" ^ String.concat "" (List.init 130 (fun _ -> "41")))
                   in
 
-                  let (state,_, values_tuple2) = parse_protobuf state_1 test_slice_2 [] in
+                  let (state,_, values_tuple2) = parse_protobuf state_1 test_slice_2 [] value_handler in
                   assert(state = AwaitingTag)
                   
