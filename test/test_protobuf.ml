@@ -116,9 +116,9 @@ let () =
                   let value_handler_2 list_of_values protobuf_value _field_number  = protobuf_value :: list_of_values in
                   let ctx_2 = [] in 
                   let (_state,_,ctx_3) = parse_protobuf AwaitingTag test_buffer_type2 ctx_2 value_handler_2 in
-                  match ctx_3 with
+                  (match ctx_3 with
                   |[SliceVal slice] -> assert (Cstruct.to_string slice = "hello")
-                  |_-> assert(1 = 0);
+                  |_-> assert(1 = 0));
                   (* let slice = match snd (List.hd values_) with SliceVal s -> s | _ -> failwith "Expected SliceVal" in *)
                   (* assert (Cstruct.to_string slice = "hello"); *)
                   Printf.printf "Working with Protobufs";
