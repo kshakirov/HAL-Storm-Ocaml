@@ -13,7 +13,7 @@ let  frame1 = "\x08\x01"
 type proto_parser_state =
   |AwaitingTag
   | ParsingVarInt of { field_number : int; iv : int; shift : int }
-  | ParsingFixedFloat32 of { field_number : int }
+  | ParsingFixed32 of { field_number : int }
   | ParsingLengthDelim of { field_number : int; target_len : int }
   | GettingLength  of {iv : int; shift:int; field_number : int}
   |Finish
@@ -21,7 +21,7 @@ type proto_parser_state =
 type protobuf_value =
   |VarIntVal of int
   |SliceVal of Cstruct.t
-  |FixedFloat32 of Cstruct.t
+  |Fixed32Val of int32
 
 type 'ctx field_handler = 'ctx -> protobuf_value -> int -> 'ctx
 let add_little_endian prev_b new_b  shift =
@@ -30,10 +30,11 @@ let add_little_endian prev_b new_b  shift =
   shifted_payload + prev_b
 (*one more parameter needed field number*)
 
-let rec parse_fixed_float32 (seq: Cstruct.t) field_number ctx handler =
+let parse_fixed32 (seq: Cstruct.t) field_number ctx handler =
   match Cstruct.length seq - 4  with
-  |l when l < 0 ->(ParsingFixedFloat32 {field_number},seq, ctx)
-  |_ -> let new_ctx = handler ctx (FixedFloat32 (Cstruct.sub seq 0 4)) field_number in
+  |l when l < 0 ->(ParsingFixed32 {field_number},seq, ctx)
+  |_ -> let bits = Cstruct.LE.get_uint32 seq 0 in
+        let new_ctx = handler ctx (Fixed32Val bits) field_number in
 
         (AwaitingTag, Cstruct.sub seq 4 (Cstruct.length seq - 4), new_ctx) 
 (*  loosing here field number  *)
@@ -86,7 +87,7 @@ let rec parse_protobuf state seq ctx (handler : 'ctx field_handler)  =
            |GettingLength {iv;shift;field_number} -> parse_protobuf state seq ctx  handler
            |_ -> parse_delim_length seq  field_number varint_val ctx  handler
            )
-        |ParsingFixedFloat32{field_number} -> parse_fixed_float32 seq field_number ctx handler
+        |ParsingFixed32{field_number} -> parse_fixed32 seq field_number ctx handler
         |_ -> 
     
 (* not sure about field number above the rest of the values must be there *)
@@ -103,7 +104,7 @@ let rec parse_protobuf state seq ctx (handler : 'ctx field_handler)  =
              parse_protobuf state seq ctx  handler
     |x when x land 7 = 5 ->
       let field_number = (x lsr 3) in 
-      parse_fixed_float32 (Cstruct.sub seq 1 (Cstruct.length seq - 1)) field_number ctx handler 
+      parse_fixed32 (Cstruct.sub seq 1 (Cstruct.length seq - 1)) field_number ctx handler
 
       
     |_ -> (Finish, seq, ctx)
@@ -162,5 +163,19 @@ let () =
                   | [(2, SliceVal slice)] ->
                       assert(Cstruct.length slice = 130);
                       assert(Cstruct.to_string slice = String.make 130 'A')
-                  | _ -> failwith "Expected field 2 with a 130-byte SliceVal")
+                  | _ -> failwith "Expected field 2 with a 130-byte SliceVal");
+
+                  let test_float = Cstruct.of_hex "0d0000c03f" in
+                  let fixed32_handler fields protobuf_value field_number =
+                    (field_number, protobuf_value) :: fields
+                  in
+                  let (state, remaining, fixed32_ctx) =
+                    parse_protobuf AwaitingTag test_float [] fixed32_handler
+                  in
+                  assert(state = AwaitingTag);
+                  assert(Cstruct.length remaining = 0);
+                  (match fixed32_ctx with
+                  | [(1, Fixed32Val bits)] ->
+                      assert(Int32.float_of_bits bits = 1.5)
+                  | _ -> failwith "Expected field 1 with float32 value 1.5")
                   
