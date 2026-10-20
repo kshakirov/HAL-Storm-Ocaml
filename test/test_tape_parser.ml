@@ -60,13 +60,30 @@ let hello  name =
   printf "hello %s" name
 
 
+let rec parse_object (seq: Cstruct.t) (state: parser_state) =
+  let o = Cstruct.get_byte seq in
+  1
+
+
 let parse_tape (seq: Cstruct.t) (state :parser_state)=
-  printf "json is %s" json
+  let b = Cstruct.get_byte seq 0 in 
+  match b with
+  | 123 ->  let p = state.position + 1 in
+            let frame = ObjectFrame{open_index=1;state=ReadingKey} in
+            let stack = frame ::state.stack in
+
+            Dynarray.add_last state.tape {tag=OpenObject;source_offset=state.position;length=0;link=Some 0};
+            parse_object seq {position=p; stack=stack;tape=state.tape}  
+            
+            
+  |_  -> 0
+            
+    
   
 
 
 
-let () = 
+let i = 
    parse_tape (Cstruct.of_string json)  {
     position = 0;
     stack = [];
