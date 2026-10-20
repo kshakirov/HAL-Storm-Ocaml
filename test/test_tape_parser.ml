@@ -10,9 +10,9 @@ type tag =
 
 type tape_entry = {
     tag : tag;
-    source_offset : int;
-    length : int;
-    mutable link : int option;
+    source_offset : int;       (* Позиция начала элемента в исходном потоке. *)
+    length : int;              (* Длина элемента в исходном потоке. *)
+    mutable link : int option; (* Индекс парной записи в Tape, если она уже известна. *)
   }
 
 type tape = tape_entry Dynarray.t
@@ -35,20 +35,20 @@ type array_state =
 
  type frame =
     | ObjectFrame of {
-        open_index : int;
-        state : object_state;
+        open_index : int;      (* Индекс соответствующего OpenObject в Tape. *)
+        state : object_state;  (* Текущая фаза разбора объекта. *)
       }
     | ArrayFrame of {
-        open_index : int;
-        state : array_state;
+        open_index : int;      (* Индекс соответствующего OpenArray в Tape. *)
+        state : array_state;   (* Текущая фаза разбора массива. *)
       }
 
 
 
 type parser_state = {
-    position : int;
-    stack : frame list;
-    tape : tape;
+    position : int;    (* Текущая позиция в исходном потоке. *)
+    stack : frame list; (* Стек ещё не закрытых объектов и массивов. *)
+    tape : tape;        (* Общая изменяемая лента результата. *)
 
   }
 
@@ -61,19 +61,25 @@ let hello  name =
 
 
 let rec parse_object (seq: Cstruct.t) (state: parser_state) =
-  let o = Cstruct.get_byte seq in
-  1
+  let o = Cstruct.get_byte seq 0 in
+  match o with
+  | 125 -> 1
+  | 44 -> let pos = state.position + 1 in
+          let last_frame = List.hd state.stack    in
+          let new_frame = ObjectFrame{open_index=last_frame.open_index;state=ReadingCommaOrClose } in
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) state
+  |_ -> 0
 
 
 let parse_tape (seq: Cstruct.t) (state :parser_state)=
   let b = Cstruct.get_byte seq 0 in 
   match b with
   | 123 ->  let p = state.position + 1 in
-            let frame = ObjectFrame{open_index=1;state=ReadingKey} in
+            let frame = ObjectFrame{open_index=Dynarray.length state.tape;state=ReadingKeyOrClose} in
             let stack = frame ::state.stack in
 
-            Dynarray.add_last state.tape {tag=OpenObject;source_offset=state.position;length=0;link=Some 0};
-            parse_object seq {position=p; stack=stack;tape=state.tape}  
+            Dynarray.add_last state.tape {tag=OpenObject;source_offset=state.position;length=0;link=None};
+            parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=p; stack=stack;tape=state.tape}  
             
             
   |_  -> 0
