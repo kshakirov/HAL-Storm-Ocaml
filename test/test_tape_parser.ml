@@ -60,14 +60,20 @@ let hello  name =
   printf "hello %s" name
 
 
-let rec parse_object (seq: Cstruct.t) (state: parser_state) =
+let rec parse_object (seq: Cstruct.t) (p_state: parser_state) =
   let o = Cstruct.get_byte seq 0 in
   match o with
   | 125 -> 1
-  | 44 -> let pos = state.position + 1 in
-          let last_frame = List.hd state.stack    in
-          let new_frame = ObjectFrame{open_index=last_frame.open_index;state=ReadingCommaOrClose } in
-     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) state
+  | 44 -> let pos = p_state.position + 1 in
+          let last_frame = List.hd p_state.stack    in
+          
+          (match last_frame with
+          | ObjectFrame {open_index;state}-> 
+             let new_frame = ObjectFrame{open_index=open_index;state=ReadingCommaOrClose } in
+             parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: p_state.stack);tape=p_state.tape}
+          |_ -> 0)
+  |58 -> let pos = p_state.position + 1 in
+         pos
   |_ -> 0
 
 
