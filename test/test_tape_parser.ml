@@ -65,12 +65,12 @@ let rec parse_object (seq: Cstruct.t) (p_state: parser_state) =
   match o with
   | 125 -> 1
   | 44 -> let pos = p_state.position + 1 in
-          let last_frame = List.hd p_state.stack    in
+
           
-          (match last_frame with
-          | ObjectFrame {open_index;state}-> 
-             let new_frame = ObjectFrame{open_index=open_index;state=ReadingCommaOrClose } in
-             parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: p_state.stack);tape=p_state.tape}
+          (match p_state.stack with
+          | ObjectFrame {open_index;state=ReadingCommaOrClose}:: rest-> 
+             let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+             parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
           |_ -> 0)
   |58 -> let pos = p_state.position + 1 in
          pos
