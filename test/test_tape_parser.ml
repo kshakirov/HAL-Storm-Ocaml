@@ -60,21 +60,33 @@ let hello  name =
   printf "hello %s" name
 
 
-let rec parse_object (seq: Cstruct.t) (p_state: parser_state) =
+let rec parse_array (seq: Cstruct.t) (p_state: parser_state) =
   let o = Cstruct.get_byte seq 0 in
-  match o with
-  | 125 -> 1
-  | 44 -> let pos = p_state.position + 1 in
+  match o, p_state.stack with
+  | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest -> 1
+  | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1
+  |_-> 1
 
-          
-          (match p_state.stack with
-          | ObjectFrame {open_index;state=ReadingCommaOrClose}:: rest-> 
-             let new_frame = ObjectFrame{open_index;state=ReadingKey } in
-             parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
-          |_ -> 0)
-  |58 -> let pos = p_state.position + 1 in
+
+
+let rec parse_object (seq: Cstruct.t) (p_state: parser_state) =
+  (* 34 = quote 44 =, 58=: 91= [, 125=} *)
+  let o = Cstruct.get_byte seq 0 in
+  match o, p_state.stack with
+  | 34, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest -> 1
+  | 34, ObjectFrame{open_index;state=ReadingKey}::rest -> 1
+  | 44,ObjectFrame{open_index;state=ReadingCommaOrClose}::rest ->
+     let pos = p_state.position + 1 in
+     let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
+
+  |58,ObjectFrame{open_index;state=ReadingColon}::rest -> let pos = p_state.position + 1 in
          pos
-  |_ -> 0
+  | 91, ObjectFrame{open_index;state=ReadingValue}::rest -> 1
+  | 125, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest -> 1
+  | 125, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 1
+  |b, ObjectFrame{open_index;state} ::rest -> 0
+  |_-> 0
 
 
 let parse_tape (seq: Cstruct.t) (state :parser_state)=
