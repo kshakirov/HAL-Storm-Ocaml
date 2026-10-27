@@ -61,9 +61,8 @@ type parser_status =
 
 
 let json = {|{"a":[1,2]}|}
+let json_empty = {|{}|}
 
-let hello  name =
-  printf "hello %s" name
 
 
 let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
@@ -78,7 +77,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
 let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   (* 34 = quote 44 =, 58=: 91= [, 125=} *)
   match Cstruct.length seq with
-  | 0 -> (NeedsMoreData, p_state)
+  | 0 -> (NeedsMoreData, p_state,seq)
   | _ ->
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
@@ -92,13 +91,20 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   (* |58,ObjectFrame{open_index;state=ReadingColon}::rest -> let pos = p_state.position + 1 in *)
   (*        pos *)
   (* | 91, ObjectFrame{open_index;state=ReadingValue}::rest -> 1 *)
-  (* | 125, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->  *)
+  | 125, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->
+
+    (
+      match List.length rest with
+      | 0 ->     (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
+      |_-> parse_object seq  p_state 
+    )
+
   (* | 125, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
   (* |b, ObjectFrame{open_index;state} ::rest -> 0 *)
-  |_-> (Error,p_state)
+  |_-> (Error,p_state, seq)
 
 
-let parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status)=
+let rec parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status)=
   match Cstruct.length seq with
   |0 -> (status, state)
   |_->
@@ -109,7 +115,12 @@ let parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status)=
             let stack = frame ::state.stack in
 
             Dynarray.add_last state.tape {tag=OpenObject;source_offset=state.position;length=0;link=None};
-            parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=p; stack=stack;tape=state.tape}  
+            let (n_status, n_state,seq) = parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=p; stack=stack;tape=state.tape} in
+            (match n_status with
+             | Wip -> parse_tape  seq n_state n_status
+             | _-> (Error, n_state)
+            )
+                
             
             
   |_  -> (Success, state)
@@ -117,12 +128,17 @@ let parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status)=
     
   
 
+let () =
 
-
-let (status, state) = 
-   parse_tape (Cstruct.of_string json)  {
+let (status, state) =    parse_tape (Cstruct.of_string json_empty)  {
     position = 0;
     stack = [];
     tape = Dynarray.create ();
   }  Start
+in 
+
+assert(status =Wip);
+assert(state.position = 2);
+assert(List.length state.stack = 0)
+  
   
