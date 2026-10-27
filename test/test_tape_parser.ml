@@ -56,6 +56,8 @@ type parser_status =
   |Success
   |Error
   |NeedsMoreData
+  |Start
+  |Wip
 
 
 let json = {|{"a":[1,2]}|}
@@ -96,7 +98,10 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   |_-> (Error,p_state)
 
 
-let parse_tape (seq: Cstruct.t) (state :parse_contex)=
+let parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status)=
+  match Cstruct.length seq with
+  |0 -> (status, state)
+  |_->
   let b = Cstruct.get_byte seq 0 in 
   match b with
   | 123 ->  let p = state.position + 1 in
@@ -119,5 +124,5 @@ let (status, state) =
     position = 0;
     stack = [];
     tape = Dynarray.create ();
-  }
+  }  Start
   
