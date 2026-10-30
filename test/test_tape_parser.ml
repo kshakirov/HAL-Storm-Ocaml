@@ -95,7 +95,11 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
 
     (
       match List.length rest with
-      | 0 ->     (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
+      | 0 ->      let tape_elem = Dynarray.get  p_state.tape  open_index in
+        Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link=Some open_index;tag=CloseObject};
+        Dynarray.set p_state.tape open_index {source_offset=tape_elem.source_offset; length=p_state.position + 1 - tape_elem.source_offset;link= Some (Dynarray.length p_state.tape - 1);tag=tape_elem.tag};
+        
+        (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
       |_-> parse_object seq  p_state 
     )
 
@@ -139,6 +143,9 @@ in
 
 assert(status =Wip);
 assert(state.position = 2);
-assert(List.length state.stack = 0)
+assert(List.length state.stack = 0);
+assert(Dynarray.length state.tape = 2);
+assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=2;link=Some 1});
+assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0})
   
   
