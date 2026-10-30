@@ -20,6 +20,6 @@
 
 (test
  (name test_tape_parser)
-
+ (preprocess (pps ppx_deriving.show))
  (modules test_tape_parser)
  (libraries eio eio_main hal_storm_lib)) ; подставь имя своей библиотеки с парсером

@@ -58,9 +58,10 @@ type parser_status =
   |NeedsMoreData
   |Start
   |Wip
+  [@@deriving show]
 
-
-let json = {|{"a":[1,2]}|}
+let json_obj = {|{"a":2}|}
+let json_array = {|{"a":[1,2]}|}
 let json_empty = {|{}|}
 
 
@@ -81,18 +82,38 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   | _ ->
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
-  (* | 34, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest -> 1 *)
-  (* | 34, ObjectFrame{open_index;state=ReadingKey}::rest -> 1 *)
-  | 44,ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
+  | 34, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->
      let pos = p_state.position + 1 in
      let new_frame = ObjectFrame{open_index;state=ReadingKey } in
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
+  | 34, ObjectFrame{open_index;state=ReadingKey}::rest -> 
+     let pos = p_state.position + 1 in
+     let new_frame = ObjectFrame{open_index;state=ReadingColon } in
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
+
+  | _, ObjectFrame{open_index;state=ReadingKey}::rest -> 
+    Printf.printf "here %d \n" o;
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=(ObjectFrame{open_index;state=ReadingKey}::rest);tape=p_state.tape}
+
+  | 58, ObjectFrame{open_index;state=ReadingColon}::rest ->
+    Printf.printf  "colon  %d \n" o;
+     let pos = p_state.position + 1 in
+     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
+(* this below is not correct it requires quote to read *)
+  | 44, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
+     let pos = p_state.position + 1 in
+     let new_frame = ObjectFrame{open_index;state=ReadingKey } in 
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
+
+
+
   (* |58,ObjectFrame{open_index;state=ReadingColon}::rest -> let pos = p_state.position + 1 in *)
   (*        pos *)
   (* | 91, ObjectFrame{open_index;state=ReadingValue}::rest -> 1 *)
-  | 125, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->
-
+  | 125, ObjectFrame{open_index;state=(ReadingKeyOrClose | ReadingCommaOrClose)}::rest ->
+    Printf.printf  "closing  %d \n" o;
     (
       match List.length rest with
       | 0 ->      let tape_elem = Dynarray.get  p_state.tape  open_index in
@@ -102,6 +123,9 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
         (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
       |_-> parse_object seq  p_state 
     )
+  | _, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
+    Printf.printf "value %d \n" o;
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=(ObjectFrame{open_index;state=ReadingCommaOrClose}::rest);tape=p_state.tape}
 
   (* | 125, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
   (* |b, ObjectFrame{open_index;state} ::rest -> 0 *)
@@ -146,6 +170,21 @@ assert(state.position = 2);
 assert(List.length state.stack = 0);
 assert(Dynarray.length state.tape = 2);
 assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=2;link=Some 1});
-assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0})
+assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0});
+  
+let (status, state) =    parse_tape (Cstruct.of_string json_obj)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in 
+
+print_endline (show_parser_status  status);
+assert(status =Wip)
+(* assert(state.position = 2); *)
+(* assert(List.length state.stack = 0); *)
+(* assert(Dynarray.length state.tape = 2); *)
+(* assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=2;link=Some 1}); *)
+(* assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0}) *)
   
   
