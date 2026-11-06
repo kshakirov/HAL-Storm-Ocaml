@@ -85,22 +85,29 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   | 34, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->
      let pos = p_state.position + 1 in
      let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+     Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=None;tag=Atom Key};
+
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
   | 34, ObjectFrame{open_index;state=ReadingKey}::rest -> 
      let pos = p_state.position + 1 in
      let new_frame = ObjectFrame{open_index;state=ReadingColon } in
+     let tape_elem = Dynarray.get_last  p_state.tape  in
+     Dynarray.set p_state.tape (Dynarray.length  p_state.tape  - 1) {source_offset=tape_elem.source_offset; length=pos - tape_elem.source_offset;link= Some (Dynarray.length p_state.tape - 1);tag=tape_elem.tag};
+
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
   | _, ObjectFrame{open_index;state=ReadingKey}::rest -> 
-    Printf.printf "here %d \n" o;
+    Printf.printf "here %d  \n" o;
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=(ObjectFrame{open_index;state=ReadingKey}::rest);tape=p_state.tape}
 
   | 58, ObjectFrame{open_index;state=ReadingColon}::rest ->
     Printf.printf  "colon  %d \n" o;
-     let pos = p_state.position + 1 in
-     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
-     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
+    let pos = p_state.position + 1 in
+    let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
+    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link=Some (Dynarray.length p_state.tape);tag=Atom Value};
+     
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame::rest);tape=p_state.tape}
 (* this below is not correct it requires quote to read *)
   | 44, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
      let pos = p_state.position + 1 in
@@ -113,13 +120,13 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   (*        pos *)
   (* | 91, ObjectFrame{open_index;state=ReadingValue}::rest -> 1 *)
   | 125, ObjectFrame{open_index;state=(ReadingKeyOrClose | ReadingCommaOrClose)}::rest ->
-    Printf.printf  "closing  %d \n" o;
+    Printf.printf  "closing  %d %d \n"  o (Dynarray.length p_state.tape );
     (
       match List.length rest with
       | 0 ->      let tape_elem = Dynarray.get  p_state.tape  open_index in
         Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link=Some open_index;tag=CloseObject};
         Dynarray.set p_state.tape open_index {source_offset=tape_elem.source_offset; length=p_state.position + 1 - tape_elem.source_offset;link= Some (Dynarray.length p_state.tape - 1);tag=tape_elem.tag};
-        
+        Printf.printf "length is %d\n" (p_state.position + 1 - tape_elem.source_offset);
         (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
       |_-> parse_object seq  p_state 
     )
@@ -180,11 +187,12 @@ let (status, state) =    parse_tape (Cstruct.of_string json_obj)  {
 in 
 
 print_endline (show_parser_status  status);
-assert(status =Wip)
-(* assert(state.position = 2); *)
-(* assert(List.length state.stack = 0); *)
-(* assert(Dynarray.length state.tape = 2); *)
-(* assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=2;link=Some 1}); *)
+print_int(state.position);
+assert(status =Wip);
+assert(state.position = 7);
+assert(List.length state.stack = 0);
+assert(Dynarray.length state.tape = 4);
+assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=7;link=Some 3});
 (* assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0}) *)
   
   
