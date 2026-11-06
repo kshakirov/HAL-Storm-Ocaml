@@ -85,7 +85,7 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   | 34, ObjectFrame{open_index;state=ReadingKeyOrClose}::rest ->
      let pos = p_state.position + 1 in
      let new_frame = ObjectFrame{open_index;state=ReadingKey } in
-     Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=None;tag=Atom Key};
+     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link=None;tag=Atom Key};
 
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
@@ -198,6 +198,8 @@ assert(state.position = 7);
 assert(List.length state.stack = 0);
 assert(Dynarray.length state.tape = 4);
 assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=7;link=Some 3});
-assert( Dynarray.get state.tape 3 = {tag=CloseObject; source_offset=6;length=1;link=Some 0})
+assert( Dynarray.get state.tape 3 = {tag=CloseObject; source_offset=6;length=1;link=Some 0});
+assert( Dynarray.get state.tape 1 = {tag=Atom Key; source_offset=1;length=3;link=None});
+
   
   
