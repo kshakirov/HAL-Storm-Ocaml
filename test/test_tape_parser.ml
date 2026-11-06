@@ -105,7 +105,7 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
     Printf.printf  "colon  %d \n" o;
     let pos = p_state.position + 1 in
     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
-    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link=Some (Dynarray.length p_state.tape);tag=Atom Value};
+    Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=Some (Dynarray.length p_state.tape);tag=Atom Value};
      
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame::rest);tape=p_state.tape}
 (* this below is not correct it requires quote to read *)
