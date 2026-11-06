@@ -93,7 +93,7 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
      let pos = p_state.position + 1 in
      let new_frame = ObjectFrame{open_index;state=ReadingColon } in
      let tape_elem = Dynarray.get_last  p_state.tape  in
-     Dynarray.set p_state.tape (Dynarray.length  p_state.tape  - 1) {source_offset=tape_elem.source_offset; length=pos - tape_elem.source_offset;link= Some (Dynarray.length p_state.tape - 1);tag=tape_elem.tag};
+     Dynarray.set p_state.tape (Dynarray.length  p_state.tape  - 1) {source_offset=tape_elem.source_offset; length=pos - tape_elem.source_offset;link= None;tag=tape_elem.tag};
 
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
@@ -105,7 +105,7 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
     Printf.printf  "colon  %d \n" o;
     let pos = p_state.position + 1 in
     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
-    Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=Some (Dynarray.length p_state.tape);tag=Atom Value};
+    Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=None;tag=Atom Value};
      
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame::rest);tape=p_state.tape}
 (* this below is not correct it requires quote to read *)
@@ -123,9 +123,14 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
     Printf.printf  "closing  %d %d \n"  o (Dynarray.length p_state.tape );
     (
       match List.length rest with
-      | 0 ->      let tape_elem = Dynarray.get  p_state.tape  open_index in
-        Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link=Some open_index;tag=CloseObject};
-        Dynarray.set p_state.tape open_index {source_offset=tape_elem.source_offset; length=p_state.position + 1 - tape_elem.source_offset;link= Some (Dynarray.length p_state.tape - 1);tag=tape_elem.tag};
+      | 0 ->      let tape_elem = Dynarray.get_last  p_state.tape  in
+        let len = Dynarray.length p_state.tape in 
+        let tape_elem_object = Dynarray.get  p_state.tape open_index  in
+        Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem.source_offset; length=p_state.position  - tape_elem.source_offset;link= None;tag=tape_elem.tag};
+        Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
+        Dynarray.set p_state.tape open_index {source_offset=tape_elem_object.source_offset; length=p_state.position + 1 - tape_elem_object.source_offset;link= Some(len);tag=tape_elem_object.tag};
+
+
         Printf.printf "length is %d\n" (p_state.position + 1 - tape_elem.source_offset);
         (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
       |_-> parse_object seq  p_state 
