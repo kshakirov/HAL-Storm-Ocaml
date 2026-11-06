@@ -198,6 +198,6 @@ assert(state.position = 7);
 assert(List.length state.stack = 0);
 assert(Dynarray.length state.tape = 4);
 assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=7;link=Some 3});
-(* assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=1;length=1;link=Some 0}) *)
+assert( Dynarray.get state.tape 1 = {tag=CloseObject; source_offset=7;length=1;link=Some 0})
   
   
