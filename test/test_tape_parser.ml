@@ -1,19 +1,21 @@
 open Printf
 
 
-type atom_role = Key | Value
+type atom_role = Key | Value [@@deriving show]
 
 type tag =
   | OpenObject | CloseObject
   | OpenArray  | CloseArray
   | Atom of atom_role
+  [@@deriving show]
 
 type tape_entry = {
     tag : tag;
     source_offset : int;       (* Позиция начала элемента в исходном потоке. *)
     length : int;              (* Длина элемента в исходном потоке. *)
     mutable link : int option; (* Индекс парной записи в Tape, если она уже известна. *)
-  }
+  } [@@deriving show]
+
 
 type tape = tape_entry Dynarray.t
 
@@ -71,6 +73,8 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    let open_array_elem = Dynarray.get_last p_state.tape in
+    Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},seq)
   (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
@@ -221,5 +225,10 @@ let (a_status, a_state) =    parse_tape (Cstruct.of_string json_empty_array)  {
 in
 print_endline "Testging array";
 print_int(a_state.position);
+
 assert(status =Wip);
 assert(a_state.position = 2);  
+assert(Dynarray.length a_state.tape = 2);
+print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
+assert( Dynarray.get a_state.tape 0 = {tag=OpenArray; source_offset=0;length=2;link=Some 1});
+assert( Dynarray.get a_state.tape 1 = {tag=CloseArray; source_offset=1;length=1;link=Some 0});
