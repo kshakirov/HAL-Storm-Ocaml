@@ -70,6 +70,9 @@ let json_empty = {|{}|}
 
 
 let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
+  match Cstruct.length seq with
+  | 0 -> (NeedsMoreData, p_state,seq)
+  | _ ->
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
@@ -78,6 +81,11 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
   (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
+  |_, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    let new_frame = ObjectFrame{open_index;state=ReadingValue } in
+    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link= None;tag=Atom Value};
+    parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=(new_frame::rest); tape=p_state.tape}
+    
   |_-> (Error, p_state,seq)
 
 
