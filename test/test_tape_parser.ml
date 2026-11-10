@@ -62,6 +62,7 @@ type parser_status =
 
 let json_obj = {|{"a":2}|}
 let json_array = {|{"a":[1,2]}|}
+let json_empty_array = {|[]|}
 let json_empty = {|{}|}
 
 
@@ -203,6 +204,7 @@ in
 
 print_endline (show_parser_status  status);
 print_int(state.position);
+print_newline () ;
 assert(status =Wip);
 assert(state.position = 7);
 assert(List.length state.stack = 0);
@@ -211,5 +213,13 @@ assert( Dynarray.get state.tape 0 = {tag=OpenObject; source_offset=0;length=7;li
 assert( Dynarray.get state.tape 3 = {tag=CloseObject; source_offset=6;length=1;link=Some 0});
 assert( Dynarray.get state.tape 1 = {tag=Atom Key; source_offset=1;length=3;link=None});
 
-  
-  
+let (a_status, a_state) =    parse_tape (Cstruct.of_string json_empty_array)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+print_endline "Testging array";
+print_int(a_state.position);
+assert(status =Wip);
+assert(a_state.position = 2);  
