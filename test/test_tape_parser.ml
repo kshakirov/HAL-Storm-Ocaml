@@ -69,9 +69,11 @@ let json_empty = {|{}|}
 let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
-  | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest -> 1
-  | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1
-  |_-> 1
+  | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
+    (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},seq)
+  (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
+  |_-> (Error, p_state,seq)
 
 
 
@@ -160,8 +162,16 @@ let rec parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status
              | Wip -> parse_tape  seq n_state n_status
              | _-> (Error, n_state)
             )
-                
-            
+
+  | 91 -> let p = state.position + 1 in 
+                let frame = ArrayFrame{open_index=Dynarray.length state.tape;state=ReadingValueOrClose} in
+                let stack = frame ::state.stack in
+    Dynarray.add_last state.tape {tag=OpenArray;source_offset=state.position;length=0;link=None};
+            let (n_status, n_state,seq) = parse_array (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=p; stack=stack;tape=state.tape} in
+            (match n_status with
+             | Wip -> parse_tape  seq n_state n_status
+             | _-> (Error, n_state)
+            )
             
   |_  -> (Success, state)
             
