@@ -76,7 +76,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
     let open_array_elem = Dynarray.get_last p_state.tape in
     Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
-    (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},seq)
+    (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
   (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
   |_-> (Error, p_state,seq)
 
@@ -226,7 +226,7 @@ in
 print_endline "Testging array";
 print_int(a_state.position);
 
-assert(status =Wip);
+assert(a_status =Wip);
 assert(a_state.position = 2);  
 assert(Dynarray.length a_state.tape = 2);
 print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
