@@ -163,6 +163,11 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
     let len = Dynarray.length p_state.tape in 
     let tape_elem_object = Dynarray.get  p_state.tape open_index  in
     (* Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem_object.source_offset; length=p_state.position  - tape_elem_object.source_offset;link= None;tag=tape_elem_object.tag}; *)
+    let last  = Dynarray.get_last  p_state.tape  in
+    ( match last.tag with
+      | Atom Value ->       Dynarray.set p_state.tape (Dynarray.length p_state.tape - 1) {source_offset=last.source_offset;length=p_state.position -  last.source_offset;link=None;tag=Atom Value};
+      |_ -> ();
+    );
 
     Dynarray.set p_state.tape open_index {source_offset=tape_elem_object.source_offset; length=p_state.position + 1 - tape_elem_object.source_offset;link= Some(len);tag=tape_elem_object.tag};
     Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
