@@ -66,6 +66,7 @@ let json_obj = {|{"a":2}|}
 let json_array = {|{"a":[1,2]}|}
 let json_empty_array = {|[]|}
 let json_1_array = {|[1]|}
+let json_objec_array_empty = {|[{"a":2}]|}
 let json_empty = {|{}|}
 
 
@@ -77,6 +78,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
   | 123, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    Printf.printf  "A 123  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let open_array_elem = Dynarray.get_last p_state.tape in
@@ -129,11 +131,10 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
   | _, ObjectFrame{open_index;state=ReadingKey}::rest -> 
-    Printf.printf "here %d  \n" o;
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=(ObjectFrame{open_index;state=ReadingKey}::rest);tape=p_state.tape}
 
   | 58, ObjectFrame{open_index;state=ReadingColon}::rest ->
-    Printf.printf  "colon  %d \n" o;
+
     let pos = p_state.position + 1 in
     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
     Dynarray.add_last p_state.tape {source_offset=pos;length=0;link=None;tag=Atom Value};
@@ -151,21 +152,18 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   (*        pos *)
   (* | 91, ObjectFrame{open_index;state=ReadingValue}::rest -> 1 *)
   | 125, ObjectFrame{open_index;state=(ReadingKeyOrClose | ReadingCommaOrClose)}::rest ->
-    Printf.printf  "closing  %d %d \n"  o (Dynarray.length p_state.tape );
-    (
-      match List.length rest with
-      | 0 ->      let tape_elem = Dynarray.get_last  p_state.tape  in
-        let len = Dynarray.length p_state.tape in 
-        let tape_elem_object = Dynarray.get  p_state.tape open_index  in
-        Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem.source_offset; length=p_state.position  - tape_elem.source_offset;link= None;tag=tape_elem.tag};
-        Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
-        Dynarray.set p_state.tape open_index {source_offset=tape_elem_object.source_offset; length=p_state.position + 1 - tape_elem_object.source_offset;link= Some(len);tag=tape_elem_object.tag};
 
 
-        Printf.printf "length is %d\n" (p_state.position + 1 - tape_elem.source_offset);
-        (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
-      |_-> parse_object seq  p_state 
-    )
+    let len = Dynarray.length p_state.tape in 
+    let tape_elem_object = Dynarray.get  p_state.tape open_index  in
+    Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem_object.source_offset; length=p_state.position  - tape_elem_object.source_offset;link= None;tag=tape_elem_object.tag};
+    Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
+    Dynarray.set p_state.tape open_index {source_offset=tape_elem_object.source_offset; length=p_state.position + 1 - tape_elem_object.source_offset;link= Some(len);tag=tape_elem_object.tag};
+
+
+    (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
+
+
   | _, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
     Printf.printf "value %d \n" o;
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=(ObjectFrame{open_index;state=ReadingCommaOrClose}::rest);tape=p_state.tape}
@@ -194,7 +192,8 @@ let rec parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status
 
   | 91 -> let p = state.position + 1 in 
                 let frame = ArrayFrame{open_index=Dynarray.length state.tape;state=ReadingValueOrClose} in
-                let stack = frame ::state.stack in
+    let stack = frame ::state.stack in
+    Printf.printf  "Array \n"  ;
     Dynarray.add_last state.tape {tag=OpenArray;source_offset=state.position;length=0;link=None};
             let (n_status, n_state,seq) = parse_array (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=p; stack=stack;tape=state.tape} in
             (match n_status with
@@ -214,7 +213,7 @@ let (status, state) =    parse_tape (Cstruct.of_string json_empty)  {
     stack = [];
     tape = Dynarray.create ();
   }  Start
-in 
+in
 
 assert(status =Wip);
 assert(state.position = 2);
@@ -228,11 +227,11 @@ let (status, state) =    parse_tape (Cstruct.of_string json_obj)  {
     stack = [];
     tape = Dynarray.create ();
   }  Start
-in 
+in
 
-print_endline (show_parser_status  status);
-print_int(state.position);
-print_newline () ;
+
+
+
 assert(status =Wip);
 assert(state.position = 7);
 assert(List.length state.stack = 0);
@@ -247,13 +246,11 @@ let (a_status, a_state) =    parse_tape (Cstruct.of_string json_empty_array)  {
     tape = Dynarray.create ();
   }  Start
 in
-print_endline "Testging array";
-print_int(a_state.position);
+
 
 assert(a_status =Wip);
-assert(a_state.position = 2);  
+assert(a_state.position = 2);
 assert(Dynarray.length a_state.tape = 2);
-print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
 assert( Dynarray.get a_state.tape 0 = {tag=OpenArray; source_offset=0;length=2;link=Some 1});
 assert( Dynarray.get a_state.tape 1 = {tag=CloseArray; source_offset=1;length=1;link=Some 0});
 
@@ -264,12 +261,29 @@ let (a_status, a_state) =    parse_tape (Cstruct.of_string json_1_array)  {
     tape = Dynarray.create ();
   }  Start
 in
-print_endline "Testging array";
-print_int(a_state.position);
+
 
 assert(a_status =Wip);
-assert(a_state.position = 3);  
+assert(a_state.position = 3);
 assert(Dynarray.length a_state.tape = 3);
-print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
 assert( Dynarray.get a_state.tape 0 = {tag=OpenArray; source_offset=0;length=3;link=Some 2});
 assert( Dynarray.get a_state.tape 2 = {tag=CloseArray; source_offset=2;length=1;link=Some 0});
+
+
+let (b_status, b_state) =    parse_tape (Cstruct.of_string json_objec_array_empty)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+print_endline "Testging json objec  array";
+print_int(b_state.position);
+
+print_endline (show_parser_status  b_status);
+print_int (Dynarray.length b_state.tape) ;
+assert(b_status =Success);
+assert(b_state.position = 8);  
+assert(Dynarray.length b_state.tape = 5);
+print_endline (show_tape_entry  (Dynarray.get b_state.tape 4));
+assert( Dynarray.get b_state.tape 0 = {tag=OpenArray; source_offset=0;length=3;link=Some 2});
+assert( Dynarray.get b_state.tape 2 = {tag=CloseArray; source_offset=2;length=1;link=Some 0});
