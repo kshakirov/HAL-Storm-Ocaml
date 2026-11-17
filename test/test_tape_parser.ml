@@ -83,7 +83,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let open_array_elem = Dynarray.get  p_state.tape open_index in
     Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
-    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
+    Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (open_index );tag=CloseArray};
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
   (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
   |_, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
@@ -290,6 +290,8 @@ print_int (Dynarray.length b_state.tape) ;
 assert(b_status =Wip);
 assert(b_state.position = 9);  
 assert(Dynarray.length b_state.tape = 6);
-print_endline (show_tape_entry  (Dynarray.get b_state.tape 0));
+print_endline (show_tape_entry  (Dynarray.get b_state.tape 5));
 assert( Dynarray.get b_state.tape 0 = {tag=OpenArray; source_offset=0;length=9;link=Some 5});
 assert( Dynarray.get b_state.tape 1= {tag=OpenObject; source_offset=1;length=7;link=Some 4});
+assert( Dynarray.get b_state.tape 5= {tag=CloseArray; source_offset=8;length=1;link=Some 0});
+assert( Dynarray.get b_state.tape 4= {tag=CloseObject; source_offset=7;length=1;link=Some 1});
