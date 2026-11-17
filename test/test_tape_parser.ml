@@ -65,6 +65,7 @@ type parser_status =
 let json_obj = {|{"a":2}|}
 let json_array = {|{"a":[1,2]}|}
 let json_empty_array = {|[]|}
+let json_1_array = {|[1]|}
 let json_empty = {|{}|}
 
 
@@ -75,6 +76,8 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   | _ ->
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
+  | 123, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let open_array_elem = Dynarray.get_last p_state.tape in
     Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
@@ -253,3 +256,20 @@ assert(Dynarray.length a_state.tape = 2);
 print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
 assert( Dynarray.get a_state.tape 0 = {tag=OpenArray; source_offset=0;length=2;link=Some 1});
 assert( Dynarray.get a_state.tape 1 = {tag=CloseArray; source_offset=1;length=1;link=Some 0});
+
+
+let (a_status, a_state) =    parse_tape (Cstruct.of_string json_1_array)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+print_endline "Testging array";
+print_int(a_state.position);
+
+assert(a_status =Wip);
+assert(a_state.position = 3);  
+assert(Dynarray.length a_state.tape = 3);
+print_endline (show_tape_entry  (Dynarray.get a_state.tape 0));
+assert( Dynarray.get a_state.tape 0 = {tag=OpenArray; source_offset=0;length=3;link=Some 2});
+assert( Dynarray.get a_state.tape 2 = {tag=CloseArray; source_offset=2;length=1;link=Some 0});
