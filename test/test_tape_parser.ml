@@ -81,7 +81,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
     Printf.printf  "A 123  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
-    let open_array_elem = Dynarray.get_last p_state.tape in
+    let open_array_elem = Dynarray.get  p_state.tape open_index in
     Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (Dynarray.length p_state.tape - 1 );tag=CloseArray};
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
@@ -156,9 +156,10 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
 
     let len = Dynarray.length p_state.tape in 
     let tape_elem_object = Dynarray.get  p_state.tape open_index  in
-    Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem_object.source_offset; length=p_state.position  - tape_elem_object.source_offset;link= None;tag=tape_elem_object.tag};
-    Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
+    (* Dynarray.set p_state.tape (len  - 1) {source_offset=tape_elem_object.source_offset; length=p_state.position  - tape_elem_object.source_offset;link= None;tag=tape_elem_object.tag}; *)
+
     Dynarray.set p_state.tape open_index {source_offset=tape_elem_object.source_offset; length=p_state.position + 1 - tape_elem_object.source_offset;link= Some(len);tag=tape_elem_object.tag};
+    Dynarray.add_last p_state.tape {source_offset=p_state.position ;length=1;link=Some open_index;tag=CloseObject};
 
 
     (Wip, {position=p_state.position + 1; stack= rest; tape=p_state.tape}, (Cstruct.sub seq 1 (Cstruct.length seq - 1))) 
@@ -200,7 +201,12 @@ let rec parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status
              | Wip -> parse_tape  seq n_state n_status
              | _-> (Error, n_state)
             )
-            
+  | 93 ->  let (n_status, n_state,seq) = parse_array seq state in
+            (match n_status with
+             | Wip -> parse_tape  seq n_state n_status
+             | _-> (Error, n_state)
+            )
+
   |_  -> (Success, state)
             
     
@@ -281,9 +287,9 @@ print_int(b_state.position);
 
 print_endline (show_parser_status  b_status);
 print_int (Dynarray.length b_state.tape) ;
-assert(b_status =Success);
-assert(b_state.position = 8);  
-assert(Dynarray.length b_state.tape = 5);
-print_endline (show_tape_entry  (Dynarray.get b_state.tape 4));
-assert( Dynarray.get b_state.tape 0 = {tag=OpenArray; source_offset=0;length=3;link=Some 2});
-assert( Dynarray.get b_state.tape 2 = {tag=CloseArray; source_offset=2;length=1;link=Some 0});
+assert(b_status =Wip);
+assert(b_state.position = 9);  
+assert(Dynarray.length b_state.tape = 6);
+print_endline (show_tape_entry  (Dynarray.get b_state.tape 0));
+assert( Dynarray.get b_state.tape 0 = {tag=OpenArray; source_offset=0;length=9;link=Some 5});
+assert( Dynarray.get b_state.tape 1= {tag=OpenObject; source_offset=1;length=7;link=Some 4});
