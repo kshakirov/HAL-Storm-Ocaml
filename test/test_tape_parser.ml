@@ -143,7 +143,13 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
 (* this below is not correct it requires quote to read *)
   | 44, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
      let pos = p_state.position + 1 in
-     let new_frame = ObjectFrame{open_index;state=ReadingKey } in 
+     let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+     let last  = Dynarray.get_last  p_state.tape  in
+     ( match last.tag with
+       | Atom Value ->       Dynarray.set p_state.tape (Dynarray.length p_state.tape - 1) {source_offset=last.source_offset;length=p_state.position -  last.source_offset;link=None;tag=Atom Value};
+       |_ -> ();
+     );
+
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
 
