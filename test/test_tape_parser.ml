@@ -27,6 +27,7 @@ type object_state =
     | ReadingValue
     | ReadingCommaOrClose
     | ReadingKey
+    | ReadingQuote
 
 
 type array_state =
@@ -68,6 +69,7 @@ let json_empty_array = {|[]|}
 let json_1_array = {|[1]|}
 let json_objec_array_empty = {|[{"a":2}]|}
 let json_empty = {|{}|}
+let json_obj_multi = {|{"a":2,"b":3}|}
 
 
 
@@ -127,7 +129,12 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
      let new_frame = ObjectFrame{open_index;state=ReadingColon } in
      let tape_elem = Dynarray.get_last  p_state.tape  in
      Dynarray.set p_state.tape (Dynarray.length  p_state.tape  - 1) {source_offset=tape_elem.source_offset; length=pos - tape_elem.source_offset;link= None;tag=tape_elem.tag};
+     parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
+  | 34, ObjectFrame{open_index;state=ReadingQuote}::rest -> 
+     let pos = p_state.position + 1 in
+     let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link=None;tag=Atom Key};
      parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=pos;stack=(new_frame :: rest);tape=p_state.tape}
 
   | _, ObjectFrame{open_index;state=ReadingKey}::rest -> 
@@ -143,7 +150,7 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
 (* this below is not correct it requires quote to read *)
   | 44, ObjectFrame{open_index;state=ReadingCommaOrClose}::rest -> 
      let pos = p_state.position + 1 in
-     let new_frame = ObjectFrame{open_index;state=ReadingKey } in
+     let new_frame = ObjectFrame{open_index;state=ReadingQuote } in
      let last  = Dynarray.get_last  p_state.tape  in
      ( match last.tag with
        | Atom Value ->       Dynarray.set p_state.tape (Dynarray.length p_state.tape - 1) {source_offset=last.source_offset;length=p_state.position -  last.source_offset;link=None;tag=Atom Value};
@@ -306,3 +313,26 @@ assert( Dynarray.get b_state.tape 0 = {tag=OpenArray; source_offset=0;length=9;l
 assert( Dynarray.get b_state.tape 1= {tag=OpenObject; source_offset=1;length=7;link=Some 4});
 assert( Dynarray.get b_state.tape 5= {tag=CloseArray; source_offset=8;length=1;link=Some 0});
 assert( Dynarray.get b_state.tape 4= {tag=CloseObject; source_offset=7;length=1;link=Some 1});
+
+
+
+let (multi_status, multi_state) =    parse_tape (Cstruct.of_string json_obj_multi)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+Printf.printf "\nTestging json object with multiple simple keys   %s\n" json_obj_multi;
+Printf.printf  "Last state position %d \n" multi_state.position;
+Printf.printf "Last state is %s\n"  (show_parser_status  multi_status);
+Printf.printf "Tape length is %d \n" (Dynarray.length multi_state.tape) ;
+
+
+assert(multi_status =Wip);
+assert(multi_state.position = 13);
+assert(List.length multi_state.stack = 0);
+assert(Dynarray.length multi_state.tape = 6);
+assert( Dynarray.get multi_state.tape 0 = {tag=OpenObject; source_offset=0;length=13;link=Some 5});
+assert( Dynarray.get multi_state.tape 5 = {tag=CloseObject; source_offset=12;length=1;link=Some 0});
+assert( Dynarray.get multi_state.tape 1 = {tag=Atom Key; source_offset=1;length=3;link=None});
+assert( Dynarray.get multi_state.tape 3 = {tag=Atom Key; source_offset=7;length=3;link=None});
