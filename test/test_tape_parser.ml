@@ -71,6 +71,7 @@ let json_objec_array_empty = {|[{"a":2}]|}
 let json_empty = {|{}|}
 let json_obj_multi = {|{"a":2,"b":3}|}
 let json_array_multi = {|[1,2]|}
+let json_array_nested_array = {|[[1,2]]|}
 
 
 
@@ -84,6 +85,11 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   | 123, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     Printf.printf  "A 123  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
+
+  | 91, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+    Printf.printf  "A 91  %d %d \n"  o (Dynarray.length p_state.tape );
+    (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
+
 
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let open_array_elem = Dynarray.get  p_state.tape open_index in
@@ -368,4 +374,28 @@ assert( Dynarray.get multi_state_array.tape 0 = {tag=OpenArray; source_offset=0;
 assert( Dynarray.get multi_state_array.tape 3 = {tag=CloseArray; source_offset=4;length=1;link=Some 0});
 assert( Dynarray.get multi_state_array.tape 1 = {tag=Atom Value; source_offset=1;length=1;link=None});
 assert( Dynarray.get multi_state_array.tape 2 = {tag=Atom Value; source_offset=3;length=1;link=None});
+
+
+let (multi_status_array_nested, multi_state_array_nested) =    parse_tape (Cstruct.of_string json_array_nested_array)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+Printf.printf "\nTestging json array with multiple simple values   %s\n" json_array_nested_array;
+Printf.printf  "Last state position %d \n" multi_state_array_nested.position;
+Printf.printf "Last state is %s\n"  (show_parser_status  multi_status_array_nested);
+Printf.printf "Tape length is %d \n" (Dynarray.length multi_state_array_nested.tape) ;
+
+
+assert(multi_status_array_nested =Wip);
+assert(multi_state_array_nested.position = 7);
+assert(List.length multi_state_array_nested.stack = 0);
+assert(Dynarray.length multi_state_array_nested.tape = 6);
+assert( Dynarray.get multi_state_array_nested.tape 0 = {tag=OpenArray; source_offset=0;length=7;link=Some 5});
+assert( Dynarray.get multi_state_array_nested.tape 1 = {tag=OpenArray; source_offset=1;length=5;link=Some 4});
+assert( Dynarray.get multi_state_array_nested.tape 2 = {tag=Atom Value; source_offset=2;length=1;link=None});
+assert( Dynarray.get multi_state_array_nested.tape 3 = {tag=Atom Value; source_offset=4;length=1;link=None});
+assert( Dynarray.get multi_state_array_nested.tape 4 = {tag=CloseArray; source_offset=5;length=1;link=Some 1});
+assert( Dynarray.get multi_state_array_nested.tape 5 = {tag=CloseArray; source_offset=6;length=1;link=Some 0});
 
