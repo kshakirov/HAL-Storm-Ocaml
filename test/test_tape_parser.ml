@@ -70,6 +70,7 @@ let json_1_array = {|[1]|}
 let json_objec_array_empty = {|[{"a":2}]|}
 let json_empty = {|{}|}
 let json_obj_multi = {|{"a":2,"b":3}|}
+let json_array_multi = {|[1,2]|}
 
 
 
@@ -79,15 +80,24 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   | _ ->
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
+
   | 123, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     Printf.printf  "A 123  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
+
   | 93, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let open_array_elem = Dynarray.get  p_state.tape open_index in
     Dynarray.set  p_state.tape open_index {source_offset=open_array_elem.source_offset; length=p_state.position + 1 - open_array_elem.source_offset;link=Some (Dynarray.length p_state.tape);tag=open_array_elem.tag};
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (open_index );tag=CloseArray};
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
-  (* | 44, ArrayFrame{open_index;state=ReadingCommaOrClose}::rest -> 1 *)
+
+  | 44, ArrayFrame{open_index;state=ReadingValue}::rest ->
+    let new_frame = ArrayFrame{open_index; state = ReadingValue} in
+    let last_elem = Dynarray.get_last p_state.tape in
+    Dynarray.set p_state.tape (Dynarray.length  p_state.tape - 1) {source_offset=last_elem.source_offset; length=p_state.position - last_elem.source_offset; link=None;tag=last_elem.tag};
+    Dynarray.add_last p_state.tape {source_offset=p_state.position + 1;length=0;link= None;tag=Atom Value};
+    parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=(new_frame::rest); tape=p_state.tape}
+
   |_, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
     let new_frame = ArrayFrame{open_index;state=ReadingValue } in
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link= None;tag=Atom Value};
@@ -101,6 +111,7 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=1;link= Some (open_index);tag=CloseArray};
 
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
+
   |_, ArrayFrame{open_index;state=ReadingValue}::rest ->
     
     parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=ArrayFrame{open_index; state=ReadingValue}::rest; tape=p_state.tape}
@@ -315,7 +326,6 @@ assert( Dynarray.get b_state.tape 5= {tag=CloseArray; source_offset=8;length=1;l
 assert( Dynarray.get b_state.tape 4= {tag=CloseObject; source_offset=7;length=1;link=Some 1});
 
 
-
 let (multi_status, multi_state) =    parse_tape (Cstruct.of_string json_obj_multi)  {
     position = 0;
     stack = [];
@@ -336,3 +346,26 @@ assert( Dynarray.get multi_state.tape 0 = {tag=OpenObject; source_offset=0;lengt
 assert( Dynarray.get multi_state.tape 5 = {tag=CloseObject; source_offset=12;length=1;link=Some 0});
 assert( Dynarray.get multi_state.tape 1 = {tag=Atom Key; source_offset=1;length=3;link=None});
 assert( Dynarray.get multi_state.tape 3 = {tag=Atom Key; source_offset=7;length=3;link=None});
+
+
+let (multi_status_array, multi_state_array) =    parse_tape (Cstruct.of_string json_array_multi)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+Printf.printf "\nTestging json array with multiple simple values   %s\n" json_array_multi;
+Printf.printf  "Last state position %d \n" multi_state_array.position;
+Printf.printf "Last state is %s\n"  (show_parser_status  multi_status_array);
+Printf.printf "Tape length is %d \n" (Dynarray.length multi_state_array.tape) ;
+
+
+assert(multi_status_array =Wip);
+assert(multi_state_array.position = 5);
+assert(List.length multi_state_array.stack = 0);
+assert(Dynarray.length multi_state_array.tape = 4);
+assert( Dynarray.get multi_state_array.tape 0 = {tag=OpenArray; source_offset=0;length=5;link=Some 3});
+assert( Dynarray.get multi_state_array.tape 3 = {tag=CloseArray; source_offset=4;length=1;link=Some 0});
+assert( Dynarray.get multi_state_array.tape 1 = {tag=Atom Value; source_offset=1;length=1;link=None});
+assert( Dynarray.get multi_state_array.tape 2 = {tag=Atom Value; source_offset=3;length=1;link=None});
+
