@@ -1,4 +1,4 @@
-open Eio.Std
+ open Eio.Std
 open Eio.Buf_read
 open Hal_storm_lib.Markov_parser
 open List
@@ -6,7 +6,7 @@ open List
 let test_markov  =
   let (r, str, buf) = markov_parse (Cstruct.of_string "Tell me why") [("Te", "AA")]  in
   assert(r);
-  Printf.printf "reslut is %b %s %s" r (fst str ) (snd str)
+  Printf.printf "result  is %b %s %s" r (fst str ) (snd str)
 
 
 

@@ -35,6 +35,7 @@ type array_state =
     | ReadingValueOrClose
     | ReadingCommaOrClose
     | ReadingValue
+    | ExpectingArrayValue
 
 
  type frame =
@@ -83,11 +84,14 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
   let o = Cstruct.get_byte seq 0 in
   match o, p_state.stack with
 
-  | 123, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+  | (0x20 | 0x09 | 0x0A | 0x0D), ArrayFrame{state=(ReadingValueOrClose | ExpectingArrayValue | ReadingCommaOrClose);_}::rest ->
+    parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=p_state.stack;tape=p_state.tape}
+
+  | 123, ArrayFrame{open_index;state=(ReadingValueOrClose | ExpectingArrayValue)}::rest ->
     Printf.printf  "A 123  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
 
-  | 91, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+  | 91, ArrayFrame{open_index;state=(ReadingValueOrClose | ExpectingArrayValue)}::rest ->
     Printf.printf  "A 91  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ArrayFrame{open_index=open_index;state=ReadingValueOrClose }:: rest; tape =p_state.tape},seq)
 
@@ -99,16 +103,15 @@ let rec parse_array (seq: Cstruct.t) (p_state: parse_contex) =
     (Wip,  {position=p_state.position + 1; stack = rest; tape =p_state.tape},Cstruct.sub seq 1 (Cstruct.length seq - 1))
 
   | 44, ArrayFrame{open_index;state=(ReadingValue | ReadingValueOrClose)}::rest ->
-    let new_frame = ArrayFrame{open_index; state = ReadingValue} in
+    let new_frame = ArrayFrame{open_index; state = ExpectingArrayValue} in
     let last_elem = Dynarray.get_last p_state.tape in
     (match last_elem.tag with
      | Atom Value ->
        Dynarray.set p_state.tape (Dynarray.length p_state.tape - 1) {source_offset=last_elem.source_offset; length=p_state.position - last_elem.source_offset; link=None;tag=last_elem.tag}
      | _ -> ());
-    Dynarray.add_last p_state.tape {source_offset=p_state.position + 1;length=0;link= None;tag=Atom Value};
     parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=(new_frame::rest); tape=p_state.tape}
 
-  |_, ArrayFrame{open_index;state=ReadingValueOrClose}::rest ->
+  |_, ArrayFrame{open_index;state=(ReadingValueOrClose | ExpectingArrayValue)}::rest ->
     let new_frame = ArrayFrame{open_index;state=ReadingValue } in
     Dynarray.add_last p_state.tape {source_offset=p_state.position;length=0;link= None;tag=Atom Value};
     parse_array (Cstruct.sub seq 1 (Cstruct.length seq - 1)) {position=p_state.position + 1;stack=(new_frame::rest); tape=p_state.tape}
@@ -175,6 +178,9 @@ let rec parse_object (seq: Cstruct.t) (p_state: parse_contex) =
   | 91, ObjectFrame{open_index;state=ExpectingValue}::rest ->
     Printf.printf  "O 91  %d %d \n"  o (Dynarray.length p_state.tape );
     (Wip,  {position=p_state.position; stack = ObjectFrame{open_index=open_index;state=ReadingCommaOrClose }:: rest; tape =p_state.tape},seq)
+
+  | (0x20 | 0x09 | 0x0A | 0x0D) , ObjectFrame{open_index;state=(ExpectingValue | ReadingQuote | ReadingColon |ReadingKeyOrClose)}::rest ->
+    parse_object (Cstruct.sub seq 1 (Cstruct.length seq -1  )) {position=p_state.position + 1;stack=p_state.stack;tape=p_state.tape}
 
   | _, ObjectFrame{open_index;state=ExpectingValue}::rest ->
     let new_frame = ObjectFrame{open_index;state=ReadingCommaOrClose } in
@@ -514,7 +520,7 @@ assert( Dynarray.get object_after_array_state.tape 6 = {tag=Atom Value; source_o
 assert( Dynarray.get object_after_array_state.tape 7 = {tag=CloseObject; source_offset=14;length=1;link=Some 0});
 
 
-let json_array_after_array = {|  [[1],2]|} in
+let json_array_after_array = {|  [[1],2]  |} in
 let (array_after_array_status, array_after_array_state) =    parse_tape (Cstruct.of_string json_array_after_array)  {
     position = 0;
     stack = [];
@@ -528,7 +534,7 @@ Printf.printf "Tape length is %d \n" (Dynarray.length array_after_array_state.ta
 
 
 assert(array_after_array_status =Wip);
-assert(array_after_array_state.position = 9);
+assert(array_after_array_state.position = 11);
 assert(List.length array_after_array_state.stack = 0);
 assert(Dynarray.length array_after_array_state.tape = 6);
 assert( Dynarray.get array_after_array_state.tape 0 = {tag=OpenArray; source_offset=2;length=7;link=Some 5});
@@ -537,3 +543,32 @@ assert( Dynarray.get array_after_array_state.tape 2 = {tag=Atom Value; source_of
 assert( Dynarray.get array_after_array_state.tape 3 = {tag=CloseArray; source_offset=5;length=1;link=Some 1});
 assert( Dynarray.get array_after_array_state.tape 4 = {tag=Atom Value; source_offset=7;length=1;link=None});
 assert( Dynarray.get array_after_array_state.tape 5 = {tag=CloseArray; source_offset=8;length=1;link=Some 0});
+
+let json_whitespace = " \t{ \n\"a b\" \t: \r[ \t1, \n2, \r[ \t] \n] \t, \r\"b\" : 3} \n" in
+let (whitespace_status, whitespace_state) =    parse_tape (Cstruct.of_string json_whitespace)  {
+    position = 0;
+    stack = [];
+    tape = Dynarray.create ();
+  }  Start
+in
+Printf.printf "\nTestging json with whitespace   %s\n" json_whitespace;
+Printf.printf  "Last state position %d \n" whitespace_state.position;
+Printf.printf "Last state is %s\n"  (show_parser_status whitespace_status);
+Printf.printf "Tape length is %d \n" (Dynarray.length whitespace_state.tape) ;
+
+
+assert(whitespace_status =Wip);
+assert(whitespace_state.position = 48);
+assert(List.length whitespace_state.stack = 0);
+assert(Dynarray.length whitespace_state.tape = 11);
+assert( Dynarray.get whitespace_state.tape 0 = {tag=OpenObject; source_offset=2;length=44;link=Some 10});
+assert( Dynarray.get whitespace_state.tape 1 = {tag=Atom Key; source_offset=5;length=5;link=None});
+assert( Dynarray.get whitespace_state.tape 2 = {tag=OpenArray; source_offset=15;length=18;link=Some 7});
+assert( Dynarray.get whitespace_state.tape 3 = {tag=Atom Value; source_offset=18;length=1;link=None});
+assert( Dynarray.get whitespace_state.tape 4 = {tag=Atom Value; source_offset=22;length=1;link=None});
+assert( Dynarray.get whitespace_state.tape 5 = {tag=OpenArray; source_offset=26;length=4;link=Some 6});
+assert( Dynarray.get whitespace_state.tape 6 = {tag=CloseArray; source_offset=29;length=1;link=Some 5});
+assert( Dynarray.get whitespace_state.tape 7 = {tag=CloseArray; source_offset=32;length=1;link=Some 2});
+assert( Dynarray.get whitespace_state.tape 8 = {tag=Atom Key; source_offset=38;length=3;link=None});
+assert( Dynarray.get whitespace_state.tape 9 = {tag=Atom Value; source_offset=44;length=1;link=None});
+assert( Dynarray.get whitespace_state.tape 10 = {tag=CloseObject; source_offset=45;length=1;link=Some 0});
