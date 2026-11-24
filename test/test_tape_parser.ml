@@ -232,6 +232,9 @@ let rec parse_tape (seq: Cstruct.t) (state :parse_contex) (status :parser_status
   |_->
   let b = Cstruct.get_byte seq 0 in 
   match b with
+  | 0x20 | 0x09 | 0x0A | 0x0D ->
+  
+    parse_tape  (Cstruct.sub seq 1 (Cstruct.length seq -1  ))  {position=state.position + 1; stack=state.stack;tape= state.tape} status
   | 123 ->  let p = state.position + 1 in
             let frame = ObjectFrame{open_index=Dynarray.length state.tape;state=ReadingKeyOrClose} in
             let stack = frame ::state.stack in
@@ -511,7 +514,7 @@ assert( Dynarray.get object_after_array_state.tape 6 = {tag=Atom Value; source_o
 assert( Dynarray.get object_after_array_state.tape 7 = {tag=CloseObject; source_offset=14;length=1;link=Some 0});
 
 
-let json_array_after_array = {|[[1],2]|} in
+let json_array_after_array = {|  [[1],2]|} in
 let (array_after_array_status, array_after_array_state) =    parse_tape (Cstruct.of_string json_array_after_array)  {
     position = 0;
     stack = [];
@@ -525,12 +528,12 @@ Printf.printf "Tape length is %d \n" (Dynarray.length array_after_array_state.ta
 
 
 assert(array_after_array_status =Wip);
-assert(array_after_array_state.position = 7);
+assert(array_after_array_state.position = 9);
 assert(List.length array_after_array_state.stack = 0);
 assert(Dynarray.length array_after_array_state.tape = 6);
-assert( Dynarray.get array_after_array_state.tape 0 = {tag=OpenArray; source_offset=0;length=7;link=Some 5});
-assert( Dynarray.get array_after_array_state.tape 1 = {tag=OpenArray; source_offset=1;length=3;link=Some 3});
-assert( Dynarray.get array_after_array_state.tape 2 = {tag=Atom Value; source_offset=2;length=1;link=None});
-assert( Dynarray.get array_after_array_state.tape 3 = {tag=CloseArray; source_offset=3;length=1;link=Some 1});
-assert( Dynarray.get array_after_array_state.tape 4 = {tag=Atom Value; source_offset=5;length=1;link=None});
-assert( Dynarray.get array_after_array_state.tape 5 = {tag=CloseArray; source_offset=6;length=1;link=Some 0});
+assert( Dynarray.get array_after_array_state.tape 0 = {tag=OpenArray; source_offset=2;length=7;link=Some 5});
+assert( Dynarray.get array_after_array_state.tape 1 = {tag=OpenArray; source_offset=3;length=3;link=Some 3});
+assert( Dynarray.get array_after_array_state.tape 2 = {tag=Atom Value; source_offset=4;length=1;link=None});
+assert( Dynarray.get array_after_array_state.tape 3 = {tag=CloseArray; source_offset=5;length=1;link=Some 1});
+assert( Dynarray.get array_after_array_state.tape 4 = {tag=Atom Value; source_offset=7;length=1;link=None});
+assert( Dynarray.get array_after_array_state.tape 5 = {tag=CloseArray; source_offset=8;length=1;link=Some 0});
