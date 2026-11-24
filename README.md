@@ -16,3 +16,13 @@
 ---
 ## 🏷️ Глобальный поисковый маркер сессий
 `#HAL_STORM_CORE_JIT_ENGINE_SESSION_2026#`
+
+## Documentation / Документация
+
+- [English Wiki](https://github.com/kshakirov/HAL-Storm-Ocaml/wiki)
+- [Русская Wiki](https://github.com/kshakirov/HAL-Storm-Ocaml/wiki/Home-RU)
+- [Wiki sources / Исходники Wiki](doc/wiki/README.md)
+
+The Wiki distinguishes current architecture, engineering decisions and open research. Earlier performance claims in this README are project goals, not benchmark results.
+
+Wiki разделяет актуальную архитектуру, инженерные решения и открытые исследования. Ранние заявления о производительности в этом README — цели проекта, а не результаты измерений.

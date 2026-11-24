@@ -1,0 +1,20 @@
+### English
+- [Home](Home)
+- [Architecture](Architecture)
+  - [Transport and HTTP](Transport-and-HTTP)
+  - [JSON Structural Tape](JSON-Structural-Tape)
+  - [Markov Rule Matcher](Markov-Rule-Matcher)
+- [Engineering Decisions](Engineering-Decisions)
+  - [ADR-0001](ADR-0001-Native-OCaml-5)
+- [Research](Research)
+
+### Русский
+- [Главная](Home-RU)
+- [Архитектура](Architecture-RU)
+  - [Транспорт и HTTP](Transport-and-HTTP-RU)
+  - [JSON Tape](JSON-Structural-Tape-RU)
+  - [Правила Маркова](Markov-Rule-Matcher-RU)
+- [Реестр решений](Engineering-Decisions-RU)
+  - [ADR-0001](ADR-0001-Native-OCaml-5-RU)
+- [Исследования](Research-RU)
+- [Историческая гипотеза](hypothesis)

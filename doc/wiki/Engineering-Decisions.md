@@ -1,0 +1,13 @@
+# Engineering Decisions
+
+[Русский](Engineering-Decisions-RU) · [Home](Home) · [Русская главная](Home-RU)
+
+This is the central registry of accepted architectural decisions. New decisions use Context, Decision, Rationale, Consequences and Status. Implemented means the decision is present in code; it does not imply complete protocol correctness or proven performance.
+
+| ADR | Title | Status |
+|---|---|---|
+| [ADR-0001](ADR-0001-Native-OCaml-5) | Migration to native OCaml 5 | Implemented — platform migration |
+
+The original ADR remains unchanged in `doc/adr/0001-migration-to-native-ocaml5.md`. The Wiki provides a structured reading guide and translation, not a renumbered replacement. Its original status is Approved, July 2026. Some performance claims in that historical text were aspirations, not measurements.
+
+Do not promote unresolved positional rewriting or buffering choices into accepted decisions. They belong in [Research](Research). New ADRs should use the [template](ADR-Template).
