@@ -6,7 +6,7 @@ These are open questions, not accepted engineering decisions.
 
 | Direction | Next evidence |
 |---|---|
-| Positional Markov rules | Define rule priority, rewriting vs recognition, terminal behavior and source-byte length result; see issue #6 |
+| Positional Markov rules | Implement empty-replacement termination from ADR-0002; verify source ranges and termination; issue #6 |
 | String boundaries across windows | Test escaped quotes/backslashes, partial patterns and true EOF; choose continuation, accumulation or temporary substitutions explicitly |
 | Whitespace and atom completion | Exclude trailing whitespace from atom ranges without discarding spaces inside strings |
 | JSON Tape completeness | Verify additional nesting, separators, invalid inputs and arbitrary chunking; issues #9 and #10 |
@@ -18,3 +18,5 @@ These are open questions, not accepted engineering decisions.
 No placeholder-rewriting technique has yet been accepted for JSON strings. Source retention and mutation policy must be explicit before implementation.
 
 The existing [Russian hypothesis](hypothesis) is preserved. Imported repository snapshots under `context/` are historical references, not current implementation documentation.
+
+[The copying/restoration fork is recorded in ADR-0002](ADR-0002-Positional-Markov).

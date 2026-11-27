@@ -6,6 +6,7 @@
   - [Markov Rule Matcher](Markov-Rule-Matcher)
 - [Engineering Decisions](Engineering-Decisions)
   - [ADR-0001](ADR-0001-Native-OCaml-5)
+  - [ADR-0002](ADR-0002-Positional-Markov)
 - [Research](Research)
 
 ### Русский
@@ -16,5 +17,6 @@
   - [Правила Маркова](Markov-Rule-Matcher-RU)
 - [Реестр решений](Engineering-Decisions-RU)
   - [ADR-0001](ADR-0001-Native-OCaml-5-RU)
+  - [ADR-0002](ADR-0002-Positional-Markov-RU)
 - [Исследования](Research-RU)
 - [Историческая гипотеза](hypothesis)

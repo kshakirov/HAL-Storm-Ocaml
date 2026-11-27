@@ -1,11 +1,9 @@
-# Markov Rule Matcher
+# Positional Markov: current prototype
 
-[Русский](Markov-Rule-Matcher-RU) · [Home](Home) · [Русская главная](Home-RU)
+[Русский](Markov-Rule-Matcher-RU) · [ADR-0002](ADR-0002-Positional-Markov)
 
-Patterns and replacement placeholders are `Cstruct.t` pairs. `match_rule` compares the pattern against the input prefix directly by byte. It no longer converts candidate prefixes to strings. Rules are checked in list order at each position; the scanner advances left to right and returns the first match and remaining input view.
+`lib/markov_parser.ml` compares Cstruct bytes, tests rules at each position, applies equal-length replacements to shared memory and retries at the same position. On no match it advances the window and absolute position by one byte.
 
-This is a matcher prototype, not a completed normal Markov algorithm. Replacement application, terminal rules and a consumed-source-length result are not implemented. The existing test checks a match of `Te` in `Tell me why`.
+The current terminal test is pattern length 1. A test asserts success and closing quote position 72 after rewriting escaped pairs. AA/BB replacements appear in output but their bytes are not yet asserted.
 
-Zero-copy is not zero-allocation: comparison and scanning currently create subviews through `Cstruct.sub`; rules are searched again at each position. No allocation benchmark has established zero overhead.
-
-The next experiment uses positional rules to locate JSON atom boundaries, especially strings. Proposed handling of escaped quote and escaped backslash patterns, terminal quote rules, temporary substitutions and restoration is unresolved. Rules split across windows must distinguish incomplete input from mismatch. Preserve original source coordinates regardless of replacement length. See [Research](Research).
+ADR-0002 accepts empty replacement as the new terminal marker; code has not switched to it yet. Cross-window continuation, restoration, the Tape range contract and JSON integration remain unimplemented. Copying versus mutation/restoration is an open fork. Cstruct.sub representations are still created; zero allocation has not been established.

@@ -7,7 +7,8 @@ This is the central registry of accepted architectural decisions. New decisions 
 | ADR | Title | Status |
 |---|---|---|
 | [ADR-0001](ADR-0001-Native-OCaml-5) | Migration to native OCaml 5 | Implemented — platform migration |
+| [ADR-0002](ADR-0002-Positional-Markov) | Positional Markov rules for JSON strings | Accepted — partially implemented |
 
 The original ADR remains unchanged in `doc/adr/0001-migration-to-native-ocaml5.md`. The Wiki provides a structured reading guide and translation, not a renumbered replacement. Its original status is Approved, July 2026. Some performance claims in that historical text were aspirations, not measurements.
 
-Do not promote unresolved positional rewriting or buffering choices into accepted decisions. They belong in [Research](Research). New ADRs should use the [template](ADR-Template).
+ADR-0002 accepts the positional rule contract; ownership and buffering choices remain in [Research](Research). New ADRs should use the [template](ADR-Template).
