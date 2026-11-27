@@ -42,14 +42,18 @@ let match_rule (r : Cstruct.t) (expected : Cstruct.t) : bool =
   else
     false
   
-let markov_step (buf: Cstruct.t) (rules : (Cstruct.t * Cstruct.t) list) (pos : int) = 
+let rec markov_step (buf: Cstruct.t) (rules : (Cstruct.t * Cstruct.t) list) (pos : int) = 
   let found = List.find_opt (fun rule -> 
       match_rule buf (fst rule )
                      ) rules in
   match found with
-  |    Some(s1, s2) ->
+
+  | Some(s1, s2) when Cstruct.length s1 = 1 ->
+    Some((s1,s2,pos) )
+  |    Some(s1, s2) when Cstruct.length s1 > 1 ->
        replace_tmpl buf s2;
-        Some((s1,s2,pos) )
+       markov_step buf rules pos
+  |Some _ -> None
   |None -> None
 
 
